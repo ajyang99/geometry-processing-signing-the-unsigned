@@ -1,4 +1,5 @@
 #include "PSR/poisson_surface_reconstruction.h"
+#include "STU/signing_the_unsigned.h"
 #include <igl/list_to_matrix.h>
 #include <igl/opengl/glfw/Viewer.h>
 #include <Eigen/Core>
@@ -34,16 +35,22 @@ int main(int argc, char *argv[])
     N = D.rightCols(3);
   }
 
-  // Reconstruct mesh
+  // Reconstruct mesh with PSR
   Eigen::MatrixXd V;
   Eigen::MatrixXi F;
   poisson_surface_reconstruction(P,N,V,F);
+
+  // Reconstruct mesh with signing the unsigned
+  Eigen::MatrixXd V_stu;
+  Eigen::MatrixXi F_stu;
+  signing_the_unsigned(P,V_stu,F_stu);
 
   // Create a libigl Viewer object to toggle between point cloud and mesh
   igl::opengl::glfw::Viewer viewer;
   std::cout<<R"(
   P,p      view point cloud
-  M,m      view mesh
+  M,m      view mesh reconstructed with Poisson Surface Reconstruction
+  S,s      view mesh reconstructed with Signing the Unsigned
 )";
   const auto set_points = [&]()
   {
@@ -64,6 +71,11 @@ int main(int argc, char *argv[])
       case 'm':
         viewer.data().clear();
         viewer.data().set_mesh(V,F);
+        return true;
+      case 'S':
+      case 's':
+        viewer.data().clear();
+        viewer.data().set_mesh(V_stu,F_stu);
         return true;
     }
     return false;
