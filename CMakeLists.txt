@@ -14,7 +14,7 @@ include_directories("include/")
 file(GLOB SRCFILES src/*/*.cpp)
 
 add_library(core ${SRCFILES})
-target_link_libraries(core igl::core igl::opengl igl::opengl_glfw )
+target_link_libraries(core igl::core igl::opengl igl::cgal igl::opengl_glfw )
 
 add_executable(mesh-reconstruction "main.cpp")
-target_link_libraries(mesh-reconstruction core igl::core igl::opengl igl::opengl_glfw )
+target_link_libraries(mesh-reconstruction core igl::core igl::opengl igl::cgal igl::opengl_glfw )
