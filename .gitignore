@@ -38,3 +38,4 @@ debug*.py
 *.jpg
 *.mp4
 *.json
+build-release
