@@ -59,7 +59,7 @@ void connected_components(
 }
 
 // Bucket tets into buckets with unsigned dist threshold defined by eps_list
-// i.e. if reverise is true, tet_buckets[:i] contains all tets whose unsigned distance of all vertices
+// i.e. if reverise is false, tet_buckets[:i] contains all tets whose unsigned distance of all vertices
 // are <= eps_list[i];
 // otherwise, tet_buckets[i] contains all tets whose unsigned distance is > eps_list[buckets-i-1] (complement)
 void bucket_tets(
@@ -124,10 +124,7 @@ void eps_band_select(
     const Eigen::MatrixXi & T,
     const Eigen::VectorXd & D,
     const Eigen::VectorXd & D_P,
-    double & eps,
-    Eigen::MatrixXd & V_eps,
-    Eigen::VectorXi & I_eps,
-    Eigen::MatrixXi & T_eps)
+    double & eps)
 {
     // Sort the vetices by the distance value in ascending order
     int n = D.size();
@@ -228,31 +225,31 @@ void eps_band_select(
     //     M_eps.push_back(m);
     // }
 
-    int eps_idx = num_buckets / 3;
-    eps = eps_list[eps_idx];
-    std::cout << eps << std::endl;
-    double eps_median;
-    igl::median(D, eps_median);
-    std::cout << eps_median << std::endl;
-    V_eps.resize(n, 3);
-    I_eps.resize(n);
-    T_eps.resize(T.rows(), 4);
-    int V_eps_size = 0;
-    int T_eps_size = 0;
-    for (int i = 0; i < n; ++i) {
-        if (D(i) <= eps) {
-            V_eps.row(V_eps_size) = V.row(i);
-            I_eps(V_eps_size) = i;
-            V_eps_size++;
-        }
-    }
-    for (int i = 0; i < T.rows(); ++i) {
-        if ((D(T(i,0)) <= eps) && (D(T(i,1)) <= eps) && (D(T(i,2)) <= eps) && (D(T(i,3)) <= eps))  {
-            T_eps.row(T_eps_size) = T.row(i);
-            T_eps_size++;
-        }
-    }
-    V_eps.conservativeResize(V_eps_size, 3);
-    I_eps.conservativeResize(V_eps_size);
-    T_eps.conservativeResize(T_eps_size, 4);
+    // int eps_idx = num_buckets * 0.5;
+    // eps = eps_list[eps_idx];
+    // std::cout << eps << std::endl;
+    // double eps_median;
+    igl::median(D, eps);
+    // std::cout << eps << std::endl;
+    // V_eps.resize(n, 3);
+    // I_eps.resize(n);
+    // T_eps.resize(T.rows(), 4);
+    // int V_eps_size = 0;
+    // int T_eps_size = 0;
+    // for (int i = 0; i < n; ++i) {
+    //     if (D(i) <= eps) {
+    //         V_eps.row(V_eps_size) = V.row(i);
+    //         I_eps(V_eps_size) = i;
+    //         V_eps_size++;
+    //     }
+    // }
+    // for (int i = 0; i < T.rows(); ++i) {
+    //     if ((D(T(i,0)) <= eps) && (D(T(i,1)) <= eps) && (D(T(i,2)) <= eps) && (D(T(i,3)) <= eps))  {
+    //         T_eps.row(T_eps_size) = T.row(i);
+    //         T_eps_size++;
+    //     }
+    // }
+    // V_eps.conservativeResize(V_eps_size, 3);
+    // I_eps.conservativeResize(V_eps_size);
+    // T_eps.conservativeResize(T_eps_size, 4);
 }

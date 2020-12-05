@@ -3,7 +3,6 @@
 #include "STU/unsigned_distance.h"
 #include <cmath>
 #include <vector>
-#include <iostream>
 
 void coarse_mesh(
     const Eigen::MatrixXd & P,
@@ -17,12 +16,6 @@ void coarse_mesh(
     // Compute unsigned distance for all points in SP
     size_t k = 5;
     unsigned_distance(P, SP, k, D);
-    std::cout << "min: " << D.minCoeff() << " max: " << D.maxCoeff() << std::endl;
-    Eigen::VectorXd::Index index;
-    D.minCoeff(&index);
-    std::cout << "argmin: " << index << std::endl;
-    D.maxCoeff(&index);
-    std::cout << "argmax: " << index << std::endl;
 
     // Find sampled points whose unsigned distance < diagonal of voxel grid
     I.resize(SP.rows());  // reserve space generously
@@ -34,8 +27,6 @@ void coarse_mesh(
             num_valid += 1;
         }
     }
-    std::cout << "num_valid " << num_valid << std::endl;
-    std::cout << "num_all " << SP.rows() << std::endl;
     I.conservativeResize(num_valid);
     // igl::slice(SP, I, 1, V);
     V.resize(num_valid, SP.cols());
