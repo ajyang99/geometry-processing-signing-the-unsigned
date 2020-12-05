@@ -1,8 +1,31 @@
 #include "STU/signing_the_unsigned.h"
 #include "STU/coarse_mesh.h"
+#include "STU/eps_band_select.h"
 #include <igl/copyleft/marching_cubes.h>
 #include <algorithm>
+#include <cmath>
 #include <iostream>
+
+void get_faces(
+  const Eigen::MatrixXi & T,
+  Eigen::MatrixXi & F)
+{
+  int num_tets = T.rows();
+  F.resize(num_tets * 4, 3);
+  Eigen::MatrixXi face_order;
+  face_order.resize(4, 3);
+  face_order << 3, 2, 1,
+                4, 3, 1,
+                2, 4, 1,
+                3, 4, 2;
+  for (unsigned i = 0; i < num_tets; ++i) {
+    for (unsigned j = 0; j < 4; ++j) {
+      for (unsigned k = 0; k < 3; ++k) {
+        F(i*4+j, k) = T(i, face_order(j,k)-1);
+      }
+    }
+  }
+}
 
 void signing_the_unsigned(
     const Eigen::MatrixXd & P,
@@ -45,7 +68,6 @@ void signing_the_unsigned(
       }
     }
   }
-  Eigen::VectorXd g = Eigen::VectorXd::Zero(nx*ny*nz);
 
   ////////////////////////////////////////////////////////////////////////////
   // Get a coarse tet mesh, along with the rough unsigned dist estimates
@@ -53,43 +75,40 @@ void signing_the_unsigned(
   Eigen::VectorXd D;
   Eigen::VectorXi I;
   Eigen::MatrixXi T;
-  coarse_mesh(P, x, h, g, V, I, T);
+  coarse_mesh(P, x, h, D, V, I, T);
   std::cout << "number of tets: " << T.rows() << std::endl;
-  int num_tets = T.rows();
-  F.resize(num_tets * 4, 3);
-  for (unsigned i = 0; i < num_tets; ++i) {
-    for (unsigned j = 0; j < 4; ++j) {
-      for (unsigned k = 0; k < 3; ++k) {
-        F(i*4+j, k) = T(i, (j+k+1)%4);
-        // if ((T(i, (j+k+1)%4) < 0) || (T(i, (j+k+1)%4)>= V.rows())) {
-        //   std::cout << "WARNING: T " << i << " " << (j+k+1)%4 << " " << T(i, (j+k+1)%4) << std::endl;
-        // }
-        // if ((F(i*4+j,k) < 0) || F(i*4+j,k) >= V.rows()) {
-        //   std::cout << "WARNING: F " << i*4+j << " " << k << " " << F(i*4+j,k) << std::endl;
-        // }
-      }
-    }
+  get_faces(T, F);
+
+  ////////////////////////////////////////////////////////////////////////////
+  // Choose an epsilon value for the epsilon band
+  ////////////////////////////////////////////////////////////////////////////
+  Eigen::VectorXd D_cm; // D of the coarse mesh
+  int n_cm = I.size();
+  D_cm.resize(n_cm);
+  for (unsigned i = 0; i < n_cm; ++i) {
+    D_cm(i) = D(I(i));
   }
 
-  // std::cout << "AFTER" << std::endl;
-  // for (unsigned i = 0; i < num_tets * 4; ++i) {
-  //   for (unsigned j = 0; j < 3; ++j) {
-  //     if ((F(i,j) < 0) || F(i,j) >= V.rows()) {
-  //       std::cout << "WARNING: F " << i << " " << j << " " << F(i,j) << std::endl;
-  //     }
-  //   }
-  // }
-  // for (unsigned i = 0; i < num_tets; ++i) {
-  //   for (unsigned j = 0; j < 4; ++j) {
-  //     if ((T(i,j) < 0) || T(i,j) >= V.rows()) {
-  //       std::cout << "WARNING: T " << i << " " << j << " " << T(i,j) << std::endl;
-  //     }
-  //   }
-  // }
+  Eigen::VectorXd D_P; // est unsigned dist of the sampled point closest to P
+  D_P.resize(n);
+  for (int i = 0; i < n; ++i) {
+      Eigen::RowVector3d delta = P.row(i) - corner;
+      int tx = int(std::round(delta(0)/h));
+      int ty = int(std::round(delta(1)/h));
+      int tz = int(std::round(delta(2)/h));
+      D_P(i) = D(tx + nx*(ty + tz * ny));
+  }
+  Eigen::MatrixXd V_eps;
+  Eigen::VectorXi I_eps;
+  Eigen::MatrixXi T_eps;
+  double eps = 0.0;
+  eps_band_select(V, T, D_cm, D_P, eps, V_eps, I_eps, T_eps);
+  V = V_eps;
+  get_faces(T_eps, F);
 
   ////////////////////////////////////////////////////////////////////////////
   // Run black box algorithm to compute mesh from implicit function: this
   // function always extracts g=0, so "pre-shift" your g values by -sigma
   ////////////////////////////////////////////////////////////////////////////
-  // igl::copyleft::marching_cubes(g, x, nx, ny, nz, V, F);
+  // igl::copyleft::marching_cubes(D, x, nx, ny, nz, V, F);
 }
