@@ -1,11 +1,14 @@
 #include "STU/signing_the_unsigned.h"
+#include "STU/unsigned_distance.h"
 #include "STU/coarse_mesh.h"
 #include "STU/eps_band_select.h"
+#include "STU/eps_band_refine.h"
 #include <igl/copyleft/marching_cubes.h>
 #include <igl/parallel_for.h>
 #include <algorithm>
 #include <cmath>
 #include <iostream>
+// #include <fstream>
 
 void get_faces(
   const Eigen::MatrixXi & T,
@@ -95,11 +98,20 @@ void signing_the_unsigned(
   Eigen::VectorXd D_x; // unsigned distance of all sampled grid points x
   Eigen::VectorXi I; // x.row(I(i)) = V.row(i)
   Eigen::MatrixXi T; // (V, T) is the coarse mesh
-  coarse_mesh(P, x, h, D_x, V, I, T);
+  const size_t nearest_neighbor_k = 5;
+  coarse_mesh(P, x, h, nearest_neighbor_k, D_x, V, I, T);
   get_faces(T, F);
 
+  // used for eps refinement plotting
+  // std::ofstream index_file("vertex_indexing.txt");
+  // for (int i = 0; i < I.size(); ++i) {
+  //   index_file << I(i) << std::endl;
+  // }
+  // index_file.close();
+
   ////////////////////////////////////////////////////////////////////////////
-  // Choose an epsilon value for the epsilon band
+  // Choose an epsilon value for the epsilon band, and refine unsigned dist
+  // of sampled points inside the band.
   ////////////////////////////////////////////////////////////////////////////
   Eigen::VectorXd D; // D of the coarse mesh; #D == #V
   D.resizeLike(I);
@@ -107,19 +119,13 @@ void signing_the_unsigned(
     D(i) = D_x(I(i));
   }
 
-  Eigen::VectorXd D_P; // est unsigned dist of the sampled point closest to P
-  D_P.resize(n);
-  igl::parallel_for(n,[&](size_t i) {
-      Eigen::RowVector3d delta = P.row(i) - corner;
-      int tx = int(std::round(delta(0)/h));
-      int ty = int(std::round(delta(1)/h));
-      int tz = int(std::round(delta(2)/h));
-      D_P(i) = D(tx + nx*(ty + tz * ny));
-  },1000);
+  Eigen::VectorXd D_P; // est unsigned dist of the input point cloud
+  unsigned_distance(P, P, nearest_neighbor_k, D_P);
   double eps = 0.0;
   eps_band_select(V, T, D, D_P, eps);
-  Eigen::MatrixXi T_eps;
-  // to visulize eps band
+
+  eps_band_refine(P, D_P, V, eps, nearest_neighbor_k, D);
+  Eigen::MatrixXi T_eps;  // to visulize eps band with refined distance
   get_eps_band(D, T, eps, T_eps);
   get_faces(T_eps, F);
 

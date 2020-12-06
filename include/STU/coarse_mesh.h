@@ -10,6 +10,7 @@
 //   P      #P by 3 list of input points
 //   SP     #SP by 3 list of sampled candidate points, which is a voxel grid
 //   h      width of each cubic voxel grid cell
+//   k      K used for K nearest neighbor when estimating unsigned distance
 // Outputs:
 //   D      list of size #SP of the unsigned distance
 //   V      #V by 3 vertices of the coarse mesh (#V <= #SP)
@@ -20,6 +21,7 @@ void coarse_mesh(
     const Eigen::MatrixXd & P,
     const Eigen::MatrixXd & SP,
     const double h,
+    const size_t k,
     Eigen::VectorXd & D,
     Eigen::MatrixXd & V,
     Eigen::VectorXi & I,

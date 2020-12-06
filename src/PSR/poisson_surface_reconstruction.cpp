@@ -3,6 +3,8 @@
 #include "PSR/fd_grad.h"
 #include <igl/copyleft/marching_cubes.h>
 #include <algorithm>
+#include <igl/point_mesh_squared_distance.h>
+#include <fstream>
 
 void poisson_surface_reconstruction(
     const Eigen::MatrixXd & P,
@@ -81,4 +83,15 @@ void poisson_surface_reconstruction(
   // function always extracts g=0, so "pre-shift" your g values by -sigma
   ////////////////////////////////////////////////////////////////////////////
   igl::copyleft::marching_cubes(g, x, nx, ny, nz, V, F);
+
+  // Used for comparing STU unsigned dist estimates
+  // Eigen::VectorXd d;
+  // Eigen::VectorXi I;
+  // Eigen::MatrixXd C;
+  // igl::point_mesh_squared_distance(x, V, F, d, I, C);
+  // std::ofstream file("gt_dist.txt");
+  // for (int i = 0; i < d.size();  ++i) {
+  //   file  <<  std::sqrt(d(i)) << std::endl;
+  // }
+  // file.close();
 }
