@@ -11,11 +11,12 @@ void coarse_mesh(
     Eigen::VectorXd & D,
     Eigen::MatrixXd & V,
     Eigen::VectorXi & I,
-    Eigen::MatrixXi & T)
+    Eigen::MatrixXi & T,
+    Eigen::MatrixXd & DG)
 {
     // Compute unsigned distance for all points in SP
     size_t k = 5;
-    unsigned_distance(P, SP, k, D);
+    unsigned_distance(P, SP, k, D, DG);
 
     // Find sampled points whose unsigned distance < diagonal of voxel grid
     I.resize(SP.rows());  // reserve space generously

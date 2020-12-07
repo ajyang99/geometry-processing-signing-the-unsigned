@@ -13,6 +13,12 @@
 void signing_the_unsigned(
     const Eigen::MatrixXd & P,
     Eigen::MatrixXd & V,
-    Eigen::MatrixXi & F);
+    Eigen::MatrixXi & F,
+    Eigen::MatrixXi & T,
+    double & eps,
+    Eigen::VectorXd & D,
+    Eigen::MatrixXd & DG,
+    Eigen::VectorXi & sign,
+    Eigen::VectorXd & signconf);
 
 #endif

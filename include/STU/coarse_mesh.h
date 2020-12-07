@@ -23,6 +23,7 @@ void coarse_mesh(
     Eigen::VectorXd & D,
     Eigen::MatrixXd & V,
     Eigen::VectorXi & I,
-    Eigen::MatrixXi & T);
+    Eigen::MatrixXi & T,
+    Eigen::MatrixXd & DG);
 
 #endif

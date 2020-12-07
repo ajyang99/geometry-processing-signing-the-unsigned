@@ -1,11 +1,14 @@
 #include "STU/signing_the_unsigned.h"
 #include "STU/coarse_mesh.h"
 #include "STU/eps_band_select.h"
+#include "STU/shoot_ray.h"
+#include "STU/graph_representation.h"
 #include <igl/copyleft/marching_cubes.h>
 #include <igl/parallel_for.h>
 #include <algorithm>
 #include <cmath>
 #include <iostream>
+#include <random>
 
 void get_faces(
   const Eigen::MatrixXi & T,
@@ -52,7 +55,13 @@ void get_eps_band(
 void signing_the_unsigned(
     const Eigen::MatrixXd & P,
     Eigen::MatrixXd & V,
-    Eigen::MatrixXi & F)
+    Eigen::MatrixXi & F,
+    Eigen::MatrixXi & T,
+    double & eps,
+    Eigen::VectorXd & D,
+    Eigen::MatrixXd & DG,
+    Eigen::VectorXi & sign,
+    Eigen::VectorXd & signconf)
 {
   ////////////////////////////////////////////////////////////////////////////
   // Construct FD grid, code from the Poisson Reconstruction Assignment
@@ -94,17 +103,18 @@ void signing_the_unsigned(
   ////////////////////////////////////////////////////////////////////////////
   Eigen::VectorXd D_x; // unsigned distance of all sampled grid points x
   Eigen::VectorXi I; // x.row(I(i)) = V.row(i)
-  Eigen::MatrixXi T; // (V, T) is the coarse mesh
-  coarse_mesh(P, x, h, D_x, V, I, T);
+  Eigen::MatrixXd DG_x;
+  coarse_mesh(P, x, h, D_x, V, I, T, DG_x);
   get_faces(T, F);
 
   ////////////////////////////////////////////////////////////////////////////
   // Choose an epsilon value for the epsilon band
   ////////////////////////////////////////////////////////////////////////////
-  Eigen::VectorXd D; // D of the coarse mesh; #D == #V
   D.resizeLike(I);
+  DG.resize(I.rows(), 3);
   for (unsigned i = 0; i < I.size(); ++i) {
     D(i) = D_x(I(i));
+    DG.row(i) = DG_x.row(I(i));
   }
 
   Eigen::VectorXd D_P; // est unsigned dist of the sampled point closest to P
@@ -116,7 +126,7 @@ void signing_the_unsigned(
       int tz = int(std::round(delta(2)/h));
       D_P(i) = D(tx + nx*(ty + tz * ny));
   },1000);
-  double eps = 0.0;
+
   eps_band_select(V, T, D, D_P, eps);
   Eigen::MatrixXi T_eps;
   // to visulize eps band
@@ -126,6 +136,62 @@ void signing_the_unsigned(
   ////////////////////////////////////////////////////////////////////////////
   // Sign the distances D of tet mesh (V, T) with eps
   ////////////////////////////////////////////////////////////////////////////
+  // graph rep of the mesh
+  std::vector<std::vector<int>> v2v;
+  std::vector<Eigen::MatrixXd> v2vec;
+  graph_representation(V, T, v2v, v2vec);
+  // is_in_band
+  Eigen::VectorXi is_in_band = Eigen::VectorXi::Zero(V.rows());
+  for (int i=0; i<V.rows(); i++) {
+    if (D(i) < eps)
+      is_in_band(i) = 1;
+  }
+
+  // prepare to shoot rays
+  int R = 15;  // number of rays to shoot
+  sign.resize(V.rows());  // predicted sign for each vertex
+  signconf.resize(V.rows());  // "confidence" in predicted sign
+  // rng for choosing directions
+  std::default_random_engine generator;
+  std::normal_distribution<double> distribution(0.0, 1.0);
+
+  for (int i=0; i<V.rows(); i++) {
+    // if inside the band, set sign to 0 for now
+    if (is_in_band(i)) {
+      sign(i) = 0;
+      signconf(i) = 0.0;
+    }
+    else {
+      std::vector<int> hit_collect;
+      // INFINITE LOOP POSSIBILITY!
+      while (hit_collect.size() < R) {
+        // choose a random direction
+        // choose direction
+        Eigen::VectorXd direc(3);
+        for (int k=0; k<3; k++) {
+            direc(k) = distribution(generator);
+        }
+        direc.normalize();
+        // direc = direc / std::sqrt(direc(0)*direc(0) + direc(1)*direc(1) + direc(2)*direc(2));
+        std::vector<int> traj, should_count;  // for debugging
+        int num_hits;  // parity of this determines the sign
+        shoot_ray(v2v, v2vec, i, direc, is_in_band, DG, traj, should_count, num_hits);
+        // only count the ray if we hit the band at least once
+        if (num_hits > 0)
+          hit_collect.push_back(num_hits % 2);
+      }
+      // count evens and odds
+      int evens = 0;
+      int odds = 0;
+      for (int j=0; j<hit_collect.size(); j++) {
+        if (hit_collect[j] == 0) {evens++;}
+        else {odds++;}
+      }
+      // calculate sign and confidence
+      sign(i) = (evens > odds) ? 1 : -1;
+      signconf(i) = 2*std::max(evens, odds) / R - 1;
+    }
+  }
 
 
   ////////////////////////////////////////////////////////////////////////////

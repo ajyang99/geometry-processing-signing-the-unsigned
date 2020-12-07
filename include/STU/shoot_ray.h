@@ -1,5 +1,5 @@
-#ifndef UNSIGNED_DISTANCE_H
-#define UNSIGNED_DISTANCE_H
+#ifndef SHOOT_RAY_H
+#define SHOOT_RAY_H
 #include <Eigen/Core>
 
 // Takes input sample points P, and sampled 3D point and gives an unsigned
@@ -12,11 +12,15 @@
 // Outputs:
 //   D      list of size #SP of the unsigned distance
 //
-void unsigned_distance(
-    const Eigen::MatrixXd & P,
-    const Eigen::MatrixXd & SP,
-    size_t k,
-    Eigen::VectorXd & D,
-    Eigen::MatrixXd & DG);
+void shoot_ray(
+    const std::vector<std::vector<int>> & v2v,
+    const std::vector<Eigen::MatrixXd> & v2vec,
+    const int query_ix,
+    const Eigen::VectorXd & direc,
+    const Eigen::VectorXi & is_in_band,
+    const Eigen::MatrixXd & DG,
+    std::vector<int> & traj,
+    std::vector<int> & should_count,
+    int & num_hits);
 
 #endif

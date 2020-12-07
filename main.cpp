@@ -1,5 +1,7 @@
 #include "PSR/poisson_surface_reconstruction.h"
 #include "STU/signing_the_unsigned.h"
+#include "STU/graph_representation.h"
+#include "STU/shoot_ray.h"
 #include <igl/list_to_matrix.h>
 #include <igl/opengl/glfw/Viewer.h>
 #include <Eigen/Core>
@@ -9,6 +11,7 @@
 #include <sstream>
 #include <vector>
 #include <cstdlib>
+#include <random>
 
 int main(int argc, char *argv[])
 {
@@ -34,16 +37,35 @@ int main(int argc, char *argv[])
     P = D.leftCols(3);
     N = D.rightCols(3);
   }
+  std::default_random_engine generator;
+  std::normal_distribution<double> distribution(0.0, 1.0);
 
-  // Reconstruct mesh with PSR
-  Eigen::MatrixXd V;
-  Eigen::MatrixXi F;
-  poisson_surface_reconstruction(P,N,V,F);
+  // // Reconstruct mesh with PSR
+  // Eigen::MatrixXd V;
+  // Eigen::MatrixXi F;
+  // poisson_surface_reconstruction(P,N,V,F);
 
   // Reconstruct mesh with signing the unsigned
-  Eigen::MatrixXd V_stu;
-  Eigen::MatrixXi F_stu;
-  signing_the_unsigned(P,V_stu,F_stu);
+  Eigen::MatrixXd V_stu, DG;
+  Eigen::MatrixXi F_stu, T;
+  Eigen::VectorXd dist, signconf;
+  Eigen::VectorXi sign;
+  double eps;
+  signing_the_unsigned(P,V_stu,F_stu, T, eps, dist, DG, sign, signconf);
+  std::vector<std::vector<int>> v2v;
+  std::vector<Eigen::MatrixXd> v2vec;
+  graph_representation(V_stu, T, v2v, v2vec);
+  // is_in_band
+  Eigen::VectorXi is_in_band = Eigen::VectorXi::Zero(V_stu.rows());
+  for (int i=0; i<V_stu.rows(); i++) {
+    if (dist(i) < eps)
+      is_in_band(i) = 1;
+  }
+  double zplane = 0.0;
+  Eigen::MatrixXd zcolors = Eigen::MatrixXd::Zero(V_stu.rows(), 3);
+  for (int i=0; i<V_stu.rows(); i++) {
+    zcolors(i, sign(i) + 1) = 1.0;
+  }
 
   // Create a libigl Viewer object to toggle between point cloud and mesh
   igl::opengl::glfw::Viewer viewer;
@@ -55,8 +77,98 @@ int main(int argc, char *argv[])
   const auto set_points = [&]()
   {
     viewer.data().clear();
-    viewer.data().set_points(P,Eigen::RowVector3d(1,1,1));
-    viewer.data().add_edges(P,(P+0.01*N).eval(),Eigen::RowVector3d(1,0,0));
+    viewer.data().set_points(V_stu,zcolors);
+    // viewer.data().set_points(V_stu,Eigen::RowVector3d(1,1,1));
+    // // viewer.data().add_edges(V_stu,(V_stu+0.01*DG).eval(),Eigen::RowVector3d(1,0,0));
+    // int counter = 0;
+    // for (int i=0; i<v2vec.size(); i++) {
+    //   counter += v2vec[i].size();
+    // }
+    // Eigen::MatrixXd vpts(counter, 3);
+    // Eigen::MatrixXd vnorm(counter, 3);
+    // counter = 0;
+    // for (int i=0; i<v2vec.size(); i++) {
+    //   for (int j=0; j<v2vec[i].rows(); j++) {
+    //     vpts.row(counter) = V_stu.row(i);
+    //     vnorm.row(counter) = v2vec[i].row(j);
+    //     counter++;
+    //   }
+    // }
+    // viewer.data().add_edges(vpts,(vpts+0.01*vnorm).eval(),Eigen::RowVector3d(1,0,0));
+  };
+  const auto draw_z_plane = [&]()
+  {
+    std::cout<<"ZPLANE: "<<zplane<<std::endl;
+    Eigen::MatrixXd colors, pts;
+    colors.resizeLike(zcolors);
+    pts.resizeLike(V_stu);
+    int counter = 0;
+    for (int i=0; i<V_stu.rows(); i++) {
+      if (std::abs(V_stu(i, 2) - zplane) < 0.02) {
+        pts.row(counter) = V_stu.row(i);
+        colors.row(counter) = zcolors.row(i);
+        counter++;
+      }
+    }
+    viewer.data().clear();
+    if (counter>0) {
+      pts = pts.topRows(counter);
+      colors = colors.topRows(counter);
+      viewer.data().set_points(pts,colors);
+    }
+  };
+  const auto ray_view = [&] ()
+  {
+    Eigen::VectorXd direc(3);
+    for (int k=0; k<3; k++) {
+        direc(k) = distribution(generator);
+    }
+    direc = direc / std::sqrt(direc(0)*direc(0) + direc(1)*direc(1) + direc(2)*direc(2));
+    std::cout<<"DIRECTION: "<<direc<<std::endl;
+    viewer.data().clear();
+    viewer.data().set_points(V_stu,Eigen::RowVector3d(1,1,1));
+
+    // choose point
+    int query_ix = std::rand() % V_stu.rows();
+    // // choose direction
+    // Eigen::VectorXd direc = Eigen::VectorXd::Zero(3);
+    // direc(0) = 1.0;
+    std::vector<int> traj, should_count;
+    int num_hits;
+    shoot_ray(v2v, v2vec, query_ix, direc, is_in_band, DG, traj, should_count, num_hits);
+    std::cout<<num_hits<<std::endl;
+    Eigen::MatrixXd vec0, vec1;
+    Eigen::MatrixXd colors = Eigen::MatrixXd::Zero(traj.size() - 1, 3);
+    vec0.resize(traj.size() - 1, 3);
+    vec1.resize(traj.size() - 1, 3);
+    for (int i=0; i<traj.size()-1; i++) {
+      vec0.row(i) = V_stu.row(traj[i]);
+      vec1.row(i) = V_stu.row(traj[i+1]);
+      if (should_count[i] == 0 && should_count[i+1] == 1)
+        colors(i, 0) = 1.0;
+      if (should_count[i] == 1 && should_count[i+1] == 0)
+        colors(i, 1) = 1.0;
+      if (should_count[i] == 1 && should_count[i+1] == 1)
+        colors(i, 2) = 1.0;
+    }
+    viewer.data().add_edges(vec0,vec1,colors);
+    Eigen::MatrixXd nextv(1, 3);
+    Eigen::MatrixXd nextn(1, 3);
+    nextv.row(0) = V_stu.row(query_ix);
+    nextn.row(0) = direc;
+    viewer.data().add_edges(nextv, nextv + 0.01*nextn, Eigen::RowVector3d(0,0,1));
+
+    // add graph edges
+    int counter = v2vec[query_ix].rows();
+    Eigen::MatrixXd vpts(counter, 3);
+    Eigen::MatrixXd vnorm(counter, 3);
+    counter = 0;
+    for (int j=0; j<v2vec[query_ix].rows(); j++) {
+      vpts.row(counter) = V_stu.row(query_ix);
+      vnorm.row(counter) = v2vec[query_ix].row(j);
+      counter++;
+    }
+    viewer.data().add_edges(vpts,(vpts+0.01*vnorm).eval(),Eigen::RowVector3d(1,0,0));
   };
   set_points();
   viewer.callback_key_pressed = [&](igl::opengl::glfw::Viewer&, unsigned int key,int)
@@ -67,20 +179,32 @@ int main(int argc, char *argv[])
       case 'p':
         set_points();
         return true;
-      case 'M':
-      case 'm':
-        viewer.data().clear();
-        viewer.data().set_mesh(V,F);
-        return true;
+      // case 'M':
+      // case 'm':
+      //   viewer.data().clear();
+      //   viewer.data().set_mesh(V,F);
+      //   return true;
       case 'S':
       case 's':
         viewer.data().clear();
         viewer.data().set_mesh(V_stu,F_stu);
         return true;
+      case 'e':
+        viewer.data().clear();
+        ray_view();
+        return true;
+      case 'r':
+        zplane += 0.02;
+        draw_z_plane();
+        return true;
+      case 't':
+        zplane -= 0.02;
+        draw_z_plane();
+        return true;
     }
     return false;
   };
-  viewer.data().point_size = 2;
+  viewer.data().point_size = 5;
   viewer.launch();
 
   return EXIT_SUCCESS;

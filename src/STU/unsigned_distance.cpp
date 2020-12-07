@@ -11,7 +11,8 @@ void unsigned_distance(
     const Eigen::MatrixXd & P,
     const Eigen::MatrixXd & SP,
     size_t k,
-    Eigen::VectorXd & D)
+    Eigen::VectorXd & D,
+    Eigen::MatrixXd & DG)
 {
     // Convert P into an octree as required by knn
     std::vector<std::vector<unsigned>> point_indices;
@@ -27,6 +28,7 @@ void unsigned_distance(
     // Compute unsigned distance based on the neighbors
     int n = SP.rows();
     D.resize(n);
+    DG.resize(n, 3);
     igl::parallel_for(n,[&](size_t i)
     {
         Eigen::MatrixXd neighbors;
@@ -37,5 +39,7 @@ void unsigned_distance(
         // igl::slice(P, knn_indices.row(i), 1, neighbors); // there seems to be buggy behavior with slice
         double squared_norm_mean = (neighbors.rowwise() - SP.row(i)).rowwise().squaredNorm().mean();
         D(i) = std::sqrt(squared_norm_mean);
+        DG.row(i) = -(neighbors.rowwise() - SP.row(i)).colwise().mean();
     },1000);
+    DG.rowwise().normalize();
 }
