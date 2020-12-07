@@ -19,6 +19,7 @@ void signing_the_unsigned(
     Eigen::VectorXd & D,
     Eigen::MatrixXd & DG,
     Eigen::VectorXi & sign,
-    Eigen::VectorXd & signconf);
+    Eigen::VectorXd & signconf,
+    Eigen::VectorXd & signdist);
 
 #endif

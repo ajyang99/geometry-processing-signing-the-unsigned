@@ -5,6 +5,7 @@
 #include "STU/graph_representation.h"
 #include <igl/copyleft/marching_cubes.h>
 #include <igl/parallel_for.h>
+#include <igl/cotmatrix.h>
 #include <algorithm>
 #include <cmath>
 #include <iostream>
@@ -61,7 +62,8 @@ void signing_the_unsigned(
     Eigen::VectorXd & D,
     Eigen::MatrixXd & DG,
     Eigen::VectorXi & sign,
-    Eigen::VectorXd & signconf)
+    Eigen::VectorXd & signconf,
+    Eigen::VectorXd & signdist)
 {
   ////////////////////////////////////////////////////////////////////////////
   // Construct FD grid, code from the Poisson Reconstruction Assignment
@@ -189,10 +191,36 @@ void signing_the_unsigned(
       }
       // calculate sign and confidence
       sign(i) = (evens > odds) ? 1 : -1;
-      signconf(i) = 2*std::max(evens, odds) / R - 1;
+      signconf(i) = 2*std::max(evens, odds) / ((float) R) - 1;
     }
   }
 
+  // now solve for the final sign
+  Eigen::VectorXd tgt(V.rows());
+  Eigen::SparseMatrix<double> Amat(V.rows(), V.rows());
+  Eigen::SparseMatrix<double> L;
+  double alpha = 0.1;
+  for (int i=0; i<V.rows(); i++) {
+    tgt(i) = alpha * signconf(i) * sign(i) * D(i);
+  }
+  Eigen::MatrixXi faces;
+  get_faces(T, faces);
+  igl::cotmatrix(V, faces, L);
+  typedef Eigen::Triplet<double> Trip;
+  std::vector<Trip> tripletList;
+  for(int i=0; i<V.rows(); i++) {
+    tripletList.push_back(Trip(i,i,alpha*signconf(i)));
+  }
+  Amat.setFromTriplets(tripletList.begin(), tripletList.end());
+
+  Eigen::LeastSquaresConjugateGradient<Eigen::SparseMatrix<double> > solver;
+  std::cout<<L.rows()<<", "<<Amat.rows()<<", "<<L.cols()<<", "<<Amat.cols()<<std::endl;
+  std::cout<<Amat.coeffs().minCoeff()<<", "<<Amat.coeffs().maxCoeff()<<std::endl;
+  std::cout<<L.coeffs().minCoeff()<<", "<<L.coeffs().maxCoeff()<<std::endl;
+  solver.compute(-L + Amat);
+  signdist = solver.solve(tgt);
+  std::cout << "#iterations:     " << solver.iterations() << std::endl;
+  std::cout << "estimated error: " << solver.error()      << std::endl;
 
   ////////////////////////////////////////////////////////////////////////////
   // Run black box algorithm to compute mesh from implicit function: this

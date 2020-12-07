@@ -48,10 +48,10 @@ int main(int argc, char *argv[])
   // Reconstruct mesh with signing the unsigned
   Eigen::MatrixXd V_stu, DG;
   Eigen::MatrixXi F_stu, T;
-  Eigen::VectorXd dist, signconf;
+  Eigen::VectorXd dist, signconf, signdist;
   Eigen::VectorXi sign;
   double eps;
-  signing_the_unsigned(P,V_stu,F_stu, T, eps, dist, DG, sign, signconf);
+  signing_the_unsigned(P,V_stu,F_stu, T, eps, dist, DG, sign, signconf, signdist);
   std::vector<std::vector<int>> v2v;
   std::vector<Eigen::MatrixXd> v2vec;
   graph_representation(V_stu, T, v2v, v2vec);
@@ -66,6 +66,16 @@ int main(int argc, char *argv[])
   for (int i=0; i<V_stu.rows(); i++) {
     zcolors(i, sign(i) + 1) = 1.0;
   }
+  Eigen::MatrixXd sdistcolors = Eigen::MatrixXd::Zero(V_stu.rows(), 3);
+  double maxdist = signdist.maxCoeff();
+  double mindist = signdist.minCoeff();
+  for (int i=0; i<signdist.rows(); i++) {
+    sdistcolors(i, 0) = (signdist(i) - mindist) / (maxdist - mindist);
+  }
+
+  // for (int i=0; i<V_stu.rows(); i++) {
+  //   std::cout<<dist(i)<<", "<<sign(i)<<", "<<signconf(i)<<", "<<signdist(i)<<std::endl;
+  // }
 
   // Create a libigl Viewer object to toggle between point cloud and mesh
   igl::opengl::glfw::Viewer viewer;
