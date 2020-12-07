@@ -1,8 +1,10 @@
 #include "STU/signing_the_unsigned.h"
+#include "STU/unsigned_distance.h"
 #include "STU/coarse_mesh.h"
 #include "STU/eps_band_select.h"
 #include "STU/shoot_ray.h"
 #include "STU/graph_representation.h"
+#include "STU/eps_band_refine.h"
 #include <igl/copyleft/marching_cubes.h>
 #include <igl/parallel_for.h>
 #include <igl/cotmatrix.h>
@@ -105,12 +107,21 @@ void signing_the_unsigned(
   ////////////////////////////////////////////////////////////////////////////
   Eigen::VectorXd D_x; // unsigned distance of all sampled grid points x
   Eigen::VectorXi I; // x.row(I(i)) = V.row(i)
+  const size_t nearest_neighbor_k = 5;
   Eigen::MatrixXd DG_x;
-  coarse_mesh(P, x, h, D_x, V, I, T, DG_x);
+  coarse_mesh(P, x, h, nearest_neighbor_k, D_x, V, I, T, DG_x);
   get_faces(T, F);
 
+  // used for eps refinement plotting
+  // std::ofstream index_file("vertex_indexing.txt");
+  // for (int i = 0; i < I.size(); ++i) {
+  //   index_file << I(i) << std::endl;
+  // }
+  // index_file.close();
+
   ////////////////////////////////////////////////////////////////////////////
-  // Choose an epsilon value for the epsilon band
+  // Choose an epsilon value for the epsilon band, and refine unsigned dist
+  // of sampled points inside the band.
   ////////////////////////////////////////////////////////////////////////////
   D.resizeLike(I);
   DG.resize(I.rows(), 3);
@@ -119,19 +130,13 @@ void signing_the_unsigned(
     DG.row(i) = DG_x.row(I(i));
   }
 
-  Eigen::VectorXd D_P; // est unsigned dist of the sampled point closest to P
-  D_P.resize(n);
-  igl::parallel_for(n,[&](size_t i) {
-      Eigen::RowVector3d delta = P.row(i) - corner;
-      int tx = int(std::round(delta(0)/h));
-      int ty = int(std::round(delta(1)/h));
-      int tz = int(std::round(delta(2)/h));
-      D_P(i) = D(tx + nx*(ty + tz * ny));
-  },1000);
-
+  Eigen::VectorXd D_P; // est unsigned dist of the input point cloud
+  Eigen::MatrixXd DGnew; // new gradient of the distance (TODO use this)
+  unsigned_distance(P, P, nearest_neighbor_k, D_P, DGnew);
   eps_band_select(V, T, D, D_P, eps);
-  Eigen::MatrixXi T_eps;
-  // to visulize eps band
+
+  // eps_band_refine(P, D_P, V, eps, nearest_neighbor_k, D);
+  Eigen::MatrixXi T_eps;  // to visulize eps band with refined distance
   get_eps_band(D, T, eps, T_eps);
   get_faces(T_eps, F);
 
@@ -217,8 +222,8 @@ void signing_the_unsigned(
   std::cout<<L.rows()<<", "<<Amat.rows()<<", "<<L.cols()<<", "<<Amat.cols()<<std::endl;
   std::cout<<Amat.coeffs().minCoeff()<<", "<<Amat.coeffs().maxCoeff()<<std::endl;
   std::cout<<L.coeffs().minCoeff()<<", "<<L.coeffs().maxCoeff()<<std::endl;
-  solver.compute(-L + Amat);
-  signdist = solver.solve(tgt);
+  // solver.compute(-L + Amat);
+  // signdist = solver.solve(tgt);
   std::cout << "#iterations:     " << solver.iterations() << std::endl;
   std::cout << "estimated error: " << solver.error()      << std::endl;
 

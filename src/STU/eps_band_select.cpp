@@ -5,63 +5,89 @@
 #include <vector>
 #include <igl/parallel_for.h>
 #include <igl/sort.h>
-#include <igl/median.h>
 #include <igl/volume.h>
 #include <iostream>
+#include <fstream>
 
-// Find the connected components with union find
+// For each (cumulative) bucket of tets, find the connected components of
+// the tet mesh with union find.
 void connected_components(
     const Eigen::MatrixXi & T,
     const std::vector<std::vector<int>> & tet_buckets,
     std::vector<int> & c)
 {
-    std::set<std::set<int>*> disjoint_sets;
-    c.clear();
+    // We will parition all referenced vertices in T into disjoint sets
+    // where each set is a connected component with a unique set_id.
+    // disjoint_sets[set_id] corresponds to all vertex ids in the set
+    std::vector<std::vector<int>*> disjoint_sets;
+    std::vector<int> set_id_per_vertex(T.maxCoeff()+1, -1);
     int num_buckets = tet_buckets.size();
+    c.clear();
     c.reserve(num_buckets);
+    int num_connected = 0;
     for (const std::vector<int> & I : tet_buckets) {
         for (int i = 0; i < I.size(); ++i) {
-            // We are processing T.rows(I(i))
-            std::set<int>* new_set = new std::set<int>();
-            std::set<int> all_vals = std::set<int>();
+            // We are processing T.rows(I[i))
+            std::set<int> intersect_set_ids;
             for (int j = 0; j < T.cols(); ++j) {
-                new_set->insert(T(I[i], j));
-                all_vals.insert(T(I[i], j));
+                if (set_id_per_vertex[T(I[i], j)] != -1) {
+                    intersect_set_ids.insert(set_id_per_vertex[T(I[i], j)]);
+                }
             }
-            // Find all disjoint sets that intersect with the new set
-            std::vector<std::set<int>*> intersected_sets;
-            for (std::set<int>* set : disjoint_sets) {
-                for (int val : all_vals) {
-                    if (set->find(val) != set->end()) {
-                        intersected_sets.emplace_back(set);
-                        // it is impossible another disjoint set contains val
-                        all_vals.erase(val);
-                        break;
+            if (intersect_set_ids.size() == 0) {
+                // The tet is not connected to any existing components,
+                // so we insert a new set
+                int new_set_id = disjoint_sets.size();
+                std::vector<int>* new_set = new std::vector<int>(4, 0);
+                for (int j = 0; j < T.cols(); ++j) {
+                    (*new_set)[j] = T(I[i], j);
+                    set_id_per_vertex[T(I[i], j)] = new_set_id;
+                }
+                disjoint_sets.emplace_back(new_set);
+                num_connected++;
+            } else {
+                // Find the intersected set with the largest size
+                int set_id = -1;
+                for (const int inter_set_id : intersect_set_ids) {
+                    if ((set_id == -1) || \
+                        (disjoint_sets[set_id]->size() < disjoint_sets[inter_set_id]->size())) {
+                        set_id = inter_set_id;
                     }
                 }
-                if (all_vals.size() == 0) {
-                    break;
+                // Merge all intersected sets and the new tet
+                for (const int inter_set_id : intersect_set_ids) {
+                    if (set_id == inter_set_id) {
+                        continue;
+                    }
+                    for (const int vertex : *(disjoint_sets[inter_set_id])) {
+                        disjoint_sets[set_id]->emplace_back(vertex);
+                        set_id_per_vertex[vertex] = set_id;
+                    }
+                    num_connected--;
+                    free(disjoint_sets[inter_set_id]);
+                    disjoint_sets[inter_set_id] = NULL;
+                }
+                for (int j = 0; j < T.cols(); ++j) {
+                    if (set_id_per_vertex[T(I[i], j)] == set_id) {
+                        continue;
+                    }
+                    disjoint_sets[set_id]->emplace_back(T(I[i], j));
+                    set_id_per_vertex[T(I[i], j)] = set_id;
                 }
             }
-            // Merge all intersected sets into the new set
-            for (std::set<int>* set : intersected_sets) {
-                new_set->insert(set->begin(), set->end());
-                disjoint_sets.erase(set);
-                free(set);
-            }
-            disjoint_sets.insert(new_set);
         }
-        c.push_back(disjoint_sets.size()); // # of connected components
+        c.push_back(num_connected); // # of connected components
     }
-    for (std::set<int>* set : disjoint_sets) {
-        free(set);
+    for (std::vector<int>* set : disjoint_sets) {
+        if (set != NULL) {
+            free(set);
+        }
     }
 }
 
-// Bucket tets into buckets with unsigned dist threshold defined by eps_list
-// i.e. if reverise is false, tet_buckets[:i] contains all tets whose unsigned distance of all vertices
-// are <= eps_list[i];
-// otherwise, tet_buckets[i] contains all tets whose unsigned distance is > eps_list[buckets-i-1] (complement)
+// Bucket tets into buckets based on unsigned distance and threshold eps_list.
+// i.e. tet_buckets[:i] contains all tets whose unsigned distance is <= eps_list[i];
+// If reverse is true, tet_buckets[i] contains all tets whose unsigned distance is > eps_list[buckets-i-1].
 void bucket_tets(
     const Eigen::MatrixXi & T,
     const Eigen::VectorXd & D,
@@ -72,22 +98,27 @@ void bucket_tets(
     int num_buckets = eps_list.size();
     Eigen::VectorXi bucket_inds;
     bucket_inds.resize(T.rows());
-    double sign = reverse ? -1.0 : 1.0;
     igl::parallel_for(T.rows(),[&](size_t i)
     {
         Eigen::VectorXd dist;
         dist.resize(4);
         dist << D(T(i,0)), D(T(i,1)), D(T(i,2)), D(T(i,3));
-        dist *= sign;
-        double tet_dist = dist.maxCoeff();
+        double tet_dist = reverse? dist.minCoeff() : dist.maxCoeff();
         for (int j = 0; j < num_buckets; ++j) {
-            // note that eps_list is in ascending order, so if we bucket in the reversee order
-            // then we have to traverse eps_list revesely
-            double threshold = reverse ? eps_list[num_buckets-1-j] : eps_list[j];
-            threshold *= sign;
-            if ((reverse && tet_dist < threshold) || (!reverse && tet_dist <= threshold)) {
-                bucket_inds(i) = j;
-                break;
+            if (reverse) {
+                // note that eps_list is in ascending order, so if we bucket in the reverse order
+                // then we have to traverse eps_list revesely
+                double threshold = eps_list[num_buckets-1-j];
+                if (tet_dist > threshold) {
+                    bucket_inds(i) = j;
+                    break;
+                }
+            } else {
+                double threshold = eps_list[j];
+                if (tet_dist <= threshold) {
+                    bucket_inds(i) = j;
+                    break;
+                }
             }
             bucket_inds(i) = -1;
         }
@@ -161,95 +192,90 @@ void eps_band_select(
     // }
 
     // Compute M(eps)
-    // std::vector<int> C_eps;  // connect components
-    // connected_components(T, tet_buckets, C_eps);
-    // std::vector<int> H_eps;  // cavities
-    // connected_components(T, tet_comp_buckets, H_eps);
-    // std::reverse(H_eps.begin(), H_eps.end()); // reverse H_eps to be consistent with C_eps
+    std::vector<int> C_eps;  // connect components
+    connected_components(T, tet_buckets, C_eps);
+    std::vector<int> H_eps;  // cavities
+    connected_components(T, tet_comp_buckets, H_eps);
+    std::reverse(H_eps.begin(), H_eps.end()); // reverse H_eps to be consistent with C_eps
 
-    // std::vector<double> M_eps; // (2 * (C + H) - chi) / D
-    // M_eps.reserve(num_buckets);
-    // V_eps.resize(0, 3); // vertices
-    // T_eps.resize(0, 4); // tets
-    // std::set<std::pair<int, int>> E_eps; // edges
-    // std::set<std::set<int>> F_eps; // faces
-    // std::vector<int> point_count;
-    // input_point_count(D_P, eps_list, point_count);
-    // int cum_point_count = 0;
-    // for (int i = 0; i < num_buckets; ++i) {
-    //     // std::cout << "Processing bucket idx " << i << std::endl;
-    //     // gather all vertices, edges, faces and tets of the current eps band
-    //     int verts_size_old = V_eps.rows();
-    //     V_eps.conservativeResize(verts_size_old + v_buckets[i].size(), 3);
-    //     for (int j = 0; j < v_buckets[i].size(); ++j) {
-    //         V_eps.row(verts_size_old + j) = V.row(v_buckets[i](j));
-    //     }
-    //     int tets_size_old = T_eps.rows();
-    //     T_eps.conservativeResize(tets_size_old + tet_buckets[i].size(), 4);
-    //     for (int j = 0; j < tet_buckets[i].size(); ++j) {
-    //         int t = tet_buckets[i][j];
-    //         T_eps.row(tets_size_old + j) = T.row(t);
-    //         for (int k = 0; k < 4; ++k) {
-    //             for (int l = k + 1; l < 4; ++l) {
-    //                 int start_v = T(t, k);
-    //                 int end_v = T(t, l);
-    //                 std::pair<int, int> new_edge = start_v < end_v ? \
-    //                     std::pair<int, int>(start_v, end_v) : \
-    //                     std::pair<int, int>(end_v, start_v);
-    //                 E_eps.insert(new_edge);
-    //             }
-    //             std::set<int> new_face = std::set<int>{T(t,(k+1)%4), T(t,(k+2)%4), T(t,(k+3)%4)};
-    //             F_eps.insert(new_face);
-    //         }
-    //     }
-    //     cum_point_count += point_count[i];
+    std::vector<double> M_eps; // (2 * (C + H) - chi) / D
+    M_eps.reserve(num_buckets);
+    Eigen::MatrixXi T_eps;
+    T_eps.resize(0, 4); // tets
+    std::set<int> V_eps_in_T; // vertices referenced by T_eps
+    std::set<std::pair<int, int>> E_eps; // edges
+    std::set<std::set<int>> F_eps; // faces
+    std::vector<int> point_count;
+    input_point_count(D_P, eps_list, point_count);
+    int cum_point_count = 0;
+    for (int i = 0; i < num_buckets; ++i) {
+        // gather all vertices, edges, faces and tets of the current eps band
+        int tets_size_old = T_eps.rows();
+        T_eps.conservativeResize(tets_size_old + tet_buckets[i].size(), 4);
+        for (int j = 0; j < tet_buckets[i].size(); ++j) {
+            int t = tet_buckets[i][j];
+            T_eps.row(tets_size_old + j) = T.row(t);
+            for (int k = 0; k < 4; ++k) {
+                for (int l = k + 1; l < 4; ++l) {
+                    int start_v = T(t, k);
+                    int end_v = T(t, l);
+                    V_eps_in_T.insert(start_v);
+                    V_eps_in_T.insert(end_v);
+                    std::pair<int, int> new_edge = start_v < end_v ? \
+                        std::pair<int, int>(start_v, end_v) : \
+                        std::pair<int, int>(end_v, start_v);
+                    E_eps.insert(new_edge);
+                }
+                std::set<int> new_face = std::set<int>{T(t,(k+1)%4), T(t,(k+2)%4), T(t,(k+3)%4)};
+                F_eps.insert(new_face);
+            }
+        }
+        cum_point_count += point_count[i];
 
-    //     // std::cout << T_eps.rows() << std::endl;
-    //     if (T_eps.rows() == 0) {
-    //         M_eps.push_back(0);
-    //         continue;
-    //     }
+        if (T_eps.rows() == 0) {
+            // edge case where the mesh is empty 
+            M_eps.push_back(0);
+            continue;
+        }
 
-    //     // Euler characteristic
-    //     int chi = V_eps.rows() - E_eps.size() + F_eps.size() - T_eps.rows();
+        // Euler characteristic
+        int chi = V_eps_in_T.size() - E_eps.size() + F_eps.size() - T_eps.rows();
 
-    //     // Density
-    //     Eigen::VectorXd volumes;
-    //     igl::volume(V_eps, T_eps, volumes);
-    //     double density = cum_point_count * 1.0 / volumes.sum();
+        // Density
+        Eigen::VectorXd volumes;
+        igl::volume(V, T_eps, volumes);
+        double density = cum_point_count * 1.0 / volumes.sum();
 
-    //     // M
-    //     double m = (2.0 * (C_eps[i] + H_eps[i]) - chi) / density;
-    //     std::cout << C_eps[i] << " " << H_eps[i] << " " << chi << " " << cum_point_count << " " << volumes.sum() << std::endl;
-    //     std::cout << i << m << std::endl;
-    //     M_eps.push_back(m);
-    // }
+        // M
+        double m = (2.0 * (C_eps[i] + H_eps[i]) - chi) / density;
+        M_eps.push_back(m);
+    }
 
-    // int eps_idx = num_buckets * 0.5;
-    // eps = eps_list[eps_idx];
-    // std::cout << eps << std::endl;
-    // double eps_median;
-    igl::median(D, eps);
-    // std::cout << eps << std::endl;
-    // V_eps.resize(n, 3);
-    // I_eps.resize(n);
-    // T_eps.resize(T.rows(), 4);
-    // int V_eps_size = 0;
-    // int T_eps_size = 0;
-    // for (int i = 0; i < n; ++i) {
-    //     if (D(i) <= eps) {
-    //         V_eps.row(V_eps_size) = V.row(i);
-    //         I_eps(V_eps_size) = i;
-    //         V_eps_size++;
-    //     }
-    // }
-    // for (int i = 0; i < T.rows(); ++i) {
-    //     if ((D(T(i,0)) <= eps) && (D(T(i,1)) <= eps) && (D(T(i,2)) <= eps) && (D(T(i,3)) <= eps))  {
-    //         T_eps.row(T_eps_size) = T.row(i);
-    //         T_eps_size++;
-    //     }
-    // }
-    // V_eps.conservativeResize(V_eps_size, 3);
-    // I_eps.conservativeResize(V_eps_size);
-    // T_eps.conservativeResize(T_eps_size, 4);
+    // Smooth M by peforming rolling average over [-smoothing_window_size_half:smoothing_window_size_half]
+    int smoothing_window_size_half = 7;
+    std::vector<double> M_eps_smoothed;
+    for (int i = 0; i < num_buckets; ++i) {
+        double s = 0;
+        for (int j = i - smoothing_window_size_half; j <= i + smoothing_window_size_half; ++j) {
+            s += M_eps[std::max(0, std::min(j, num_buckets-1))];
+        }
+        M_eps_smoothed.emplace_back(s / (2*smoothing_window_size_half+1));
+    }
+    // Find the local min after first local max
+    int eps_idx = 0;
+    while ((eps_idx < num_buckets - 1) && (M_eps_smoothed[eps_idx] <= M_eps_smoothed[eps_idx+1])) {
+        eps_idx++;
+    }
+    while ((eps_idx < num_buckets - 1) && (M_eps_smoothed[eps_idx] >= M_eps_smoothed[eps_idx+1])) {
+        eps_idx++;
+    }
+
+    eps = eps_list[eps_idx];
+    std::cout << "choosing eps at " << eps_idx << "/" << num_buckets << " buckets, with value " << eps << std::endl;
+
+    std::ofstream outfileM("M.txt");
+    for (int i = 0; i < M_eps.size(); ++i) {
+        outfileM << M_eps[i] << std::endl;
+    }
+    outfileM.close();
 }
