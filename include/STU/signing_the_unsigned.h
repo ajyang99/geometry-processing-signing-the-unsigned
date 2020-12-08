@@ -22,6 +22,7 @@ void signing_the_unsigned(
     Eigen::VectorXd & signconf,
     Eigen::VectorXd & signdist,
     Eigen::MatrixXd & finalV,
-    Eigen::MatrixXi & finalF);
+    Eigen::MatrixXi & finalF,
+    double & h);
 
 #endif

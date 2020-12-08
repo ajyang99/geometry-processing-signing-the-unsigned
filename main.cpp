@@ -53,8 +53,8 @@ int main(int argc, char *argv[])
   Eigen::MatrixXi F_stu, T, finalF;
   Eigen::VectorXd dist, signconf, signdist;
   Eigen::VectorXi sign;
-  double eps;
-  signing_the_unsigned(P,V_stu,F_stu, T, eps, dist, DG, sign, signconf, signdist, finalV, finalF);
+  double eps, h;
+  signing_the_unsigned(P,V_stu,F_stu, T, eps, dist, DG, sign, signconf, signdist, finalV, finalF, h);
 
   std::vector<std::vector<int>> v2v;
   std::vector<Eigen::MatrixXd> v2vec;
@@ -62,10 +62,13 @@ int main(int argc, char *argv[])
 
   // is_in_band
   Eigen::VectorXi is_in_band = Eigen::VectorXi::Zero(V_stu.rows());
+  Eigen::VectorXi band_ixes(V_stu.rows());
+  {int counter = 0;
   for (int i=0; i<V_stu.rows(); i++) {
-    if (dist(i) < eps)
-      is_in_band(i) = 1;
+    if (dist(i) < eps) {is_in_band(i) = 1;}
+    else {band_ixes(counter) = i; counter++;}
   }
+  band_ixes = band_ixes.topRows(counter);}
 
   // for plotting sign
   Eigen::MatrixXd signcolors = Eigen::MatrixXd::Zero(V_stu.rows(), 3);
@@ -162,7 +165,7 @@ int main(int argc, char *argv[])
     pts.resizeLike(zverts);
     int counter = 0;
     for (int i=0; i<zverts.rows(); i++) {
-      if (std::abs(zverts(i, 2) - zplane) < 0.015) {
+      if (std::abs(zverts(i, 2) - zplane) < 0.501*h) {
         pts.row(counter) = zverts.row(i);
         colors.row(counter) = zcolors.row(i);
         counter++;
@@ -181,13 +184,13 @@ int main(int argc, char *argv[])
     for (int k=0; k<3; k++) {
         direc(k) = distribution(generator);
     }
-    direc = direc / std::sqrt(direc(0)*direc(0) + direc(1)*direc(1) + direc(2)*direc(2));
+    direc.normalize();
     std::cout<<"DIRECTION: "<<direc<<std::endl;
     viewer.data().clear();
     viewer.data().set_mesh(V_stu,F_stu);
 
     // choose point
-    int query_ix = std::rand() % V_stu.rows();
+    int query_ix = band_ixes(std::rand() % band_ixes.rows());
     // // choose direction
     // Eigen::VectorXd direc = Eigen::VectorXd::Zero(3);
     // direc(0) = 1.0;
@@ -203,11 +206,11 @@ int main(int argc, char *argv[])
       vec0.row(i) = V_stu.row(traj[i]);
       vec1.row(i) = V_stu.row(traj[i+1]);
       if (should_count[i] == 0 && should_count[i+1] == 1)
-        colors(i, 1) = 0.0; colors(i, 2) = 0.0;
+        {colors(i, 1) = 0.0; colors(i, 2) = 0.0;}
       if (should_count[i] == 1 && should_count[i+1] == 0)
-        colors(i, 0) = 0.0; colors(i, 2) = 0.0;
+        {colors(i, 0) = 0.0; colors(i, 2) = 0.0;}
       if (should_count[i] == 1 && should_count[i+1] == 1)
-        colors(i, 0) = 0.0; colors(i, 1) = 0.0;
+        {colors(i, 0) = 0.0; colors(i, 1) = 0.0;}
     }
     viewer.data().add_edges(vec0,vec1,colors);
     Eigen::MatrixXd nextv(1, 3);

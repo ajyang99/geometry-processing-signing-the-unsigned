@@ -74,7 +74,8 @@ void signing_the_unsigned(
     Eigen::VectorXd & signconf,
     Eigen::VectorXd & signdist,
     Eigen::MatrixXd & finalV,
-    Eigen::MatrixXi & finalF)
+    Eigen::MatrixXi & finalF,
+    double & h)
 {
   ////////////////////////////////////////////////////////////////////////////
   // Construct FD grid, code from the Poisson Reconstruction Assignment
@@ -89,7 +90,7 @@ void signing_the_unsigned(
   // padding: number of cells beyond bounding box of input points
   const double pad = 8;
   // choose grid spacing (h) so that shortest side gets 30+2*pad samples
-  double h  = max_extent/double(40+2*pad);
+  h = max_extent/double(40+2*pad);
   // Place bottom-left-front corner of grid at minimum of points minus padding
   Eigen::RowVector3d corner = P.colwise().minCoeff().array()-pad*h;
   // Grid dimensions should be at least 3 
@@ -116,7 +117,7 @@ void signing_the_unsigned(
   ////////////////////////////////////////////////////////////////////////////
   Eigen::VectorXd D_x; // unsigned distance of all sampled grid points x
   Eigen::VectorXi I; // x.row(I(i)) = V.row(i)
-  const size_t nearest_neighbor_k = 15;
+  const size_t nearest_neighbor_k = 5;
   Eigen::MatrixXd DG_x;
   coarse_mesh(P, x, h, nearest_neighbor_k, D_x, V, I, T, DG_x);
   get_faces(T, F);
@@ -189,7 +190,6 @@ void signing_the_unsigned(
             direc(k) = distribution(generator);
         }
         direc.normalize();
-        // direc = direc / std::sqrt(direc(0)*direc(0) + direc(1)*direc(1) + direc(2)*direc(2));
         std::vector<int> traj, should_count;  // for debugging
         int num_hits;  // parity of this determines the sign
         shoot_ray(v2v, v2vec, i, direc, is_in_band, DG, traj, should_count, num_hits);

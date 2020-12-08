@@ -1,15 +1,31 @@
 # Signing the Unsigned: Robust Surfact Reconstruction from Raw Pointsets
 
-This is an implementation of the
+This repository implements
 [Signing the Unsigned: Robust Surfact Reconstruction from Raw Pointsets](https://hal.inria.fr/inria-00502473/document)
-paper by Mullen et al. 2010.
+by Mullen et al. 2010.
 
-> **To get started:** Clone this repository then issue
+**Problem:** Extract a signed distance field (SDF) given only a raw pointcloud.
+
+**Solution:** This paper leverages the fact that, given a closed surface $S \subset \mathbb{R}^3$, a query point $\mathbf{x} \in \mathbb{R}^3$ can be classified as lying inside or outside the surface by shooting a ray in any direction from the query point and counting how many times the ray intersections the surface $S$; if the ray intersects the surface an even/odd number of times, the point is outside/inside the surface. The paper uses this fact to "sign" an unsigned distance field. The steps are:
+
+	1. calculate an unsigned distance field (UDF)
+	2. recover a coarse mesh (M) from the UDF
+	3. shoot rays to sign the UDF relative to M
+	4. smooth the signed distance
+
+**Takeaways:** Our main critique of this paper is that it has a chicken-and-the-egg problem; ray-shooting only returns reasonable estimates of the sign if the coarse mesh M is good, but if the coarse mesh M is good then the performance benefit of estimating the sign will be small. We find the algorithm is very sensitive to its many hyper-parameters, a problem that follow-up work to this paper attempts to address ([Noise-Adaptive Shape Reconstruction from Raw Point Sets](http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.679.2055&rep=rep1&type=pdf)). 
+
+> **To get started:** Clone this repository recursively
 > 
 >     git clone --recursive http://github.com/ajyang99/geometry-processing-signing-the-unsigned.git
 >
 
 ## Installation and Compilation
+
+We use `CGAL` for 3D Delaunay triangulation. `CGAL` requires `gmp`, `mpfr` and `boost`. If you are a Mac user,
+install these dependencies with `brew install`. If you are a Windows user,
+you will only need to install `boost` as the makefiles download and install the other two
+for you automatically.
 
 To build the project, run
 
@@ -18,17 +34,14 @@ To build the project, run
     cmake -DLIBIGL_WITH_CGAL=ON -DCMAKE_BUILD_TYPE=Release ../
     make
 
-Note that we will use `CGAL` for 3D Delaunay triangulation. Make sure you installed
-the dependences (`gmp`, `mpfr`, `boost`) on your machines. If you are a Mac user,
-install the dependencies with `brew install`. If you are a Windows user,
-you will only need to install `boost` as the makefiles download and install the other two
-for you automatically.
-
 ## Execution
 
 Once built, you can execute the assignment from inside the `build/` using 
 
     ./mesh-reconstruction [path to point cloud]
+
+## Visualization
+
 
 ## Background
 We implement the [Signing the Unsigned: Robust Surfact Reconstruction from Raw Pointsets](https://hal.inria.fr/inria-00502473/document) by Mullen et al. 2010. The goal is to robustly reconstruct a closed, watertight mesh from a set of (potentially noisy) points. Unlike
