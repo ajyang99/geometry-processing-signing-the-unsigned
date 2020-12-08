@@ -20,6 +20,8 @@ void signing_the_unsigned(
     Eigen::MatrixXd & DG,
     Eigen::VectorXi & sign,
     Eigen::VectorXd & signconf,
-    Eigen::VectorXd & signdist);
+    Eigen::VectorXd & signdist,
+    Eigen::MatrixXd & finalV,
+    Eigen::MatrixXi & finalF);
 
 #endif

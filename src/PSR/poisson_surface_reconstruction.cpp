@@ -10,7 +10,9 @@ void poisson_surface_reconstruction(
     const Eigen::MatrixXd & P,
     const Eigen::MatrixXd & N,
     Eigen::MatrixXd & V,
-    Eigen::MatrixXi & F)
+    Eigen::MatrixXi & F,
+    Eigen::MatrixXd & poisx,
+    Eigen::VectorXd & poisg)
 {
   ////////////////////////////////////////////////////////////////////////////
   // Construct FD grid, CONGRATULATIONS! You get this for free!
@@ -25,7 +27,7 @@ void poisson_surface_reconstruction(
   // padding: number of cells beyond bounding box of input points
   const double pad = 8;
   // choose grid spacing (h) so that shortest side gets 30+2*pad samples
-  double h  = max_extent/double(30+2*pad);
+  double h  = max_extent/double(70+2*pad);
   // Place bottom-left-front corner of grid at minimum of points minus padding
   Eigen::RowVector3d corner = P.colwise().minCoeff().array()-pad*h;
   // Grid dimensions should be at least 3 
@@ -83,6 +85,8 @@ void poisson_surface_reconstruction(
   // function always extracts g=0, so "pre-shift" your g values by -sigma
   ////////////////////////////////////////////////////////////////////////////
   igl::copyleft::marching_cubes(g, x, nx, ny, nz, V, F);
+  poisx = x;
+  poisg = g;
 
   // Used for comparing STU unsigned dist estimates
   // Eigen::VectorXd d;

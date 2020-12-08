@@ -4,6 +4,7 @@
 #include "STU/shoot_ray.h"
 #include <igl/list_to_matrix.h>
 #include <igl/opengl/glfw/Viewer.h>
+#include <igl/colormap.h>
 #include <Eigen/Core>
 #include <string>
 #include <iostream>
@@ -40,38 +41,85 @@ int main(int argc, char *argv[])
   std::default_random_engine generator;
   std::normal_distribution<double> distribution(0.0, 1.0);
 
-  // // Reconstruct mesh with PSR
-  // Eigen::MatrixXd V;
-  // Eigen::MatrixXi F;
-  // poisson_surface_reconstruction(P,N,V,F);
+  // Reconstruct mesh with PSR
+  Eigen::MatrixXd V;
+  Eigen::MatrixXi F;
+  Eigen::MatrixXd poisx;
+  Eigen::VectorXd poisg;
+  poisson_surface_reconstruction(P,N,V,F,poisx, poisg);
 
   // Reconstruct mesh with signing the unsigned
-  Eigen::MatrixXd V_stu, DG;
-  Eigen::MatrixXi F_stu, T;
+  Eigen::MatrixXd V_stu, DG, finalV;
+  Eigen::MatrixXi F_stu, T, finalF;
   Eigen::VectorXd dist, signconf, signdist;
   Eigen::VectorXi sign;
   double eps;
-  signing_the_unsigned(P,V_stu,F_stu, T, eps, dist, DG, sign, signconf, signdist);
+  signing_the_unsigned(P,V_stu,F_stu, T, eps, dist, DG, sign, signconf, signdist, finalV, finalF);
+
   std::vector<std::vector<int>> v2v;
   std::vector<Eigen::MatrixXd> v2vec;
   graph_representation(V_stu, T, v2v, v2vec);
+
   // is_in_band
   Eigen::VectorXi is_in_band = Eigen::VectorXi::Zero(V_stu.rows());
   for (int i=0; i<V_stu.rows(); i++) {
     if (dist(i) < eps)
       is_in_band(i) = 1;
   }
-  double zplane = 0.0;
-  Eigen::MatrixXd zcolors = Eigen::MatrixXd::Zero(V_stu.rows(), 3);
+
+  // for plotting sign
+  Eigen::MatrixXd signcolors = Eigen::MatrixXd::Zero(V_stu.rows(), 3);
   for (int i=0; i<V_stu.rows(); i++) {
-    zcolors(i, sign(i) + 1) = 1.0;
+    signcolors(i, sign(i) + 1) = 1.0;
   }
+  // for plotting distance
+  Eigen::MatrixXd distcolors = Eigen::MatrixXd::Zero(V_stu.rows(), 3);
+  double maxdist = dist.maxCoeff();
+  double mindist = dist.minCoeff();
+  for (int i=0; i<V_stu.rows(); i++) {
+    double r,g,b;
+    igl::colormap(igl::ColorMapType::COLOR_MAP_TYPE_INFERNO, (dist(i) - mindist) / (maxdist - mindist), r,g,b);
+    distcolors(i, 0) = r;
+    distcolors(i, 1) = g;
+    distcolors(i, 2) = b;
+  }
+  // for plotting signconf
+  Eigen::MatrixXd signconfcolors = Eigen::MatrixXd::Zero(V_stu.rows(), 3);
+  for (int i=0; i<V_stu.rows(); i++) {
+    double r,g,b;
+    igl::colormap(igl::ColorMapType::COLOR_MAP_TYPE_INFERNO, signconf(i), r,g,b);
+    signconfcolors(i, 0) = r;
+    signconfcolors(i, 1) = g;
+    signconfcolors(i, 2) = b;
+  }
+  // for plotting signed distance
   Eigen::MatrixXd sdistcolors = Eigen::MatrixXd::Zero(V_stu.rows(), 3);
-  double maxdist = signdist.maxCoeff();
-  double mindist = signdist.minCoeff();
-  for (int i=0; i<signdist.rows(); i++) {
-    sdistcolors(i, 0) = (signdist(i) - mindist) / (maxdist - mindist);
+  maxdist = signdist.maxCoeff();
+  mindist = signdist.minCoeff();
+  std::cout<<"STU range: "<<maxdist<<", "<<mindist<<std::endl;
+  for (int i=0; i<V_stu.rows(); i++) {
+    double r,g,b;
+    igl::colormap(igl::ColorMapType::COLOR_MAP_TYPE_INFERNO, (signdist(i) - mindist) / (maxdist - mindist), r,g,b);
+    sdistcolors(i, 0) = r;
+    sdistcolors(i, 1) = g;
+    sdistcolors(i, 2) = b;
   }
+  // for plottiing poisson
+  Eigen::MatrixXd poiscolors = Eigen::MatrixXd::Zero(poisx.rows(), 3);
+  maxdist = poisg.maxCoeff();
+  mindist = poisg.minCoeff();
+  std::cout<<"poisson range: "<<maxdist<<", "<<mindist<<std::endl;
+  for (int i=0; i<poisx.rows(); i++) {
+    double r,g,b;
+    igl::colormap(igl::ColorMapType::COLOR_MAP_TYPE_INFERNO, (poisg(i) - mindist) / (maxdist - mindist), r,g,b);
+    poiscolors(i, 0) = r;
+    poiscolors(i, 1) = g;
+    poiscolors(i, 2) = b;
+  }
+  // init
+  Eigen::MatrixXd zcolors = signcolors;
+  double zplane = 0.0;
+  Eigen::MatrixXd zverts = V_stu;
 
   // for (int i=0; i<V_stu.rows(); i++) {
   //   std::cout<<dist(i)<<", "<<sign(i)<<", "<<signconf(i)<<", "<<signdist(i)<<std::endl;
@@ -111,11 +159,11 @@ int main(int argc, char *argv[])
     std::cout<<"ZPLANE: "<<zplane<<std::endl;
     Eigen::MatrixXd colors, pts;
     colors.resizeLike(zcolors);
-    pts.resizeLike(V_stu);
+    pts.resizeLike(zverts);
     int counter = 0;
-    for (int i=0; i<V_stu.rows(); i++) {
-      if (std::abs(V_stu(i, 2) - zplane) < 0.02) {
-        pts.row(counter) = V_stu.row(i);
+    for (int i=0; i<zverts.rows(); i++) {
+      if (std::abs(zverts(i, 2) - zplane) < 0.015) {
+        pts.row(counter) = zverts.row(i);
         colors.row(counter) = zcolors.row(i);
         counter++;
       }
@@ -197,18 +245,45 @@ int main(int argc, char *argv[])
       case 'S':
       case 's':
         viewer.data().clear();
-        viewer.data().set_mesh(V_stu,F_stu);
+        viewer.data().set_mesh(finalV,finalF);
         return true;
       case 'e':
         viewer.data().clear();
         ray_view();
         return true;
+
       case 'r':
         zplane += 0.02;
         draw_z_plane();
         return true;
       case 't':
         zplane -= 0.02;
+        draw_z_plane();
+        return true;
+
+      case 'y':
+        zcolors = sdistcolors;
+        zverts = V_stu;
+        draw_z_plane();
+        return true;
+      case 'u':
+        zcolors = signcolors;
+        zverts = V_stu;
+        draw_z_plane();
+        return true;
+      case 'i':
+        zcolors = signconfcolors;
+        zverts = V_stu;
+        draw_z_plane();
+        return true;
+      case 'o':
+        zcolors = distcolors;
+        zverts = V_stu;
+        draw_z_plane();
+        return true;
+      case 'm':
+        zcolors = poiscolors;
+        zverts = poisx;
         draw_z_plane();
         return true;
     }

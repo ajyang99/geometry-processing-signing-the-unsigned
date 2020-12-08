@@ -17,6 +17,8 @@ void poisson_surface_reconstruction(
     const Eigen::MatrixXd & P,
     const Eigen::MatrixXd & N,
     Eigen::MatrixXd & V,
-    Eigen::MatrixXi & F);
+    Eigen::MatrixXi & F,
+    Eigen::MatrixXd & poisx,
+    Eigen::VectorXd & poisg);
 
 #endif

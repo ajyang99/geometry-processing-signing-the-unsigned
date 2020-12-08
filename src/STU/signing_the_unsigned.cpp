@@ -5,13 +5,17 @@
 #include "STU/shoot_ray.h"
 #include "STU/graph_representation.h"
 #include "STU/eps_band_refine.h"
-#include <igl/copyleft/marching_cubes.h>
+#include <igl/doublearea.h>
+#include <igl/marching_tets.h>
 #include <igl/parallel_for.h>
+#include <igl/median.h>
 #include <igl/cotmatrix.h>
 #include <algorithm>
 #include <cmath>
 #include <iostream>
 #include <random>
+#include <functional>
+
 
 void get_faces(
   const Eigen::MatrixXi & T,
@@ -38,6 +42,7 @@ void get_faces(
   }
 }
 
+
 void get_eps_band(
   const Eigen::VectorXd & D,
   const Eigen::MatrixXi & T,
@@ -55,6 +60,7 @@ void get_eps_band(
   T_eps.conservativeResize(T_eps_size, 4);
 }
 
+
 void signing_the_unsigned(
     const Eigen::MatrixXd & P,
     Eigen::MatrixXd & V,
@@ -65,7 +71,9 @@ void signing_the_unsigned(
     Eigen::MatrixXd & DG,
     Eigen::VectorXi & sign,
     Eigen::VectorXd & signconf,
-    Eigen::VectorXd & signdist)
+    Eigen::VectorXd & signdist,
+    Eigen::MatrixXd & finalV,
+    Eigen::MatrixXi & finalF)
 {
   ////////////////////////////////////////////////////////////////////////////
   // Construct FD grid, code from the Poisson Reconstruction Assignment
@@ -80,7 +88,7 @@ void signing_the_unsigned(
   // padding: number of cells beyond bounding box of input points
   const double pad = 8;
   // choose grid spacing (h) so that shortest side gets 30+2*pad samples
-  double h  = max_extent/double(30+2*pad);
+  double h  = max_extent/double(70+2*pad);
   // Place bottom-left-front corner of grid at minimum of points minus padding
   Eigen::RowVector3d corner = P.colwise().minCoeff().array()-pad*h;
   // Grid dimensions should be at least 3 
@@ -133,7 +141,8 @@ void signing_the_unsigned(
   Eigen::VectorXd D_P; // est unsigned dist of the input point cloud
   Eigen::MatrixXd DGnew; // new gradient of the distance (TODO use this)
   unsigned_distance(P, P, nearest_neighbor_k, D_P, DGnew);
-  eps_band_select(V, T, D, D_P, eps);
+  // eps_band_select(V, T, D, D_P, eps);
+  eps = 0.015;
 
   // eps_band_refine(P, D_P, V, eps, nearest_neighbor_k, D);
   Eigen::MatrixXi T_eps;  // to visulize eps band with refined distance
@@ -200,6 +209,37 @@ void signing_the_unsigned(
     }
   }
 
+  // solve for sign inside the band
+  // - loop through vertices in the band starting with the farthest distance
+  // - if neighbors that have a sign all agree about the sign, update that sign (set signconf to be max signconf of neighbors)
+  {
+  std::vector<std::pair<int,double>> bandvs;
+  for (int i=0; i<V.rows(); i++) {
+    if (is_in_band(i))
+      bandvs.push_back(std::make_pair(i,D(i)));
+  }
+    std::sort(bandvs.begin(), bandvs.end(), [](std::pair<int,double> a, std::pair<int,double> b) {return a.second > b.second; });
+    for (int i=0; i<bandvs.size(); i++) {
+      int current_ix = bandvs[i].first;
+      int current_sign = 0;
+      double current_conf = 0.0;
+      // check if all the vertices connected to this vertex with a sign agree on the sign
+      for (int j=0; j<v2v[current_ix].size(); j++) {
+        if (current_sign == 0) {
+          current_sign = sign(v2v[current_ix][j]);}
+        else if (sign(v2v[current_ix][j]) != 0 && sign(v2v[current_ix][j]) != current_sign) {
+          current_sign = 0; break;}
+        if (sign(v2v[current_ix][j]) != 0) {
+          current_conf = std::max(current_conf, signconf(v2v[current_ix][j]));
+        }
+      }
+      if (current_sign != 0) {
+        signconf(current_ix) = current_conf;
+        sign(current_ix) = current_sign;
+      }
+    }
+  }
+
   // now solve for the final sign
   Eigen::VectorXd tgt(V.rows());
   Eigen::SparseMatrix<double> Amat(V.rows(), V.rows());
@@ -208,9 +248,23 @@ void signing_the_unsigned(
   for (int i=0; i<V.rows(); i++) {
     tgt(i) = alpha * signconf(i) * sign(i) * D(i);
   }
+  Eigen::VectorXd areas;
   Eigen::MatrixXi faces;
   get_faces(T, faces);
-  igl::cotmatrix(V, faces, L);
+  igl::doublearea(V, faces, areas);
+  Eigen::MatrixXi correctT;
+  correctT.resizeLike(faces);
+  int counter = 0;
+  for (int i=0; i<faces.rows(); i++) {
+    if (areas(i) > 1e-8) {
+      correctT.row(counter) = faces.row(i);
+      counter++;
+    }
+  }
+  correctT = correctT.topRows(counter);
+  igl::cotmatrix(V, correctT, L);
+
+  // weight matrix
   typedef Eigen::Triplet<double> Trip;
   std::vector<Trip> tripletList;
   for(int i=0; i<V.rows(); i++) {
@@ -219,11 +273,11 @@ void signing_the_unsigned(
   Amat.setFromTriplets(tripletList.begin(), tripletList.end());
 
   Eigen::LeastSquaresConjugateGradient<Eigen::SparseMatrix<double> > solver;
-  std::cout<<L.rows()<<", "<<Amat.rows()<<", "<<L.cols()<<", "<<Amat.cols()<<std::endl;
-  std::cout<<Amat.coeffs().minCoeff()<<", "<<Amat.coeffs().maxCoeff()<<std::endl;
-  std::cout<<L.coeffs().minCoeff()<<", "<<L.coeffs().maxCoeff()<<std::endl;
-  // solver.compute(-L + Amat);
-  // signdist = solver.solve(tgt);
+  // std::cout<<L.rows()<<", "<<Amat.rows()<<", "<<L.cols()<<", "<<Amat.cols()<<std::endl;
+  // std::cout<<Amat.coeffs().minCoeff()<<", "<<Amat.coeffs().maxCoeff()<<std::endl;
+  // std::cout<<"L coeffs: "<<L.coeffs().minCoeff()<<", "<<L.coeffs().maxCoeff()<<std::endl;
+  solver.compute(-L + Amat);
+  signdist = solver.solve(tgt);
   std::cout << "#iterations:     " << solver.iterations() << std::endl;
   std::cout << "estimated error: " << solver.error()      << std::endl;
 
@@ -231,5 +285,9 @@ void signing_the_unsigned(
   // Run black box algorithm to compute mesh from implicit function: this
   // function always extracts g=0, so "pre-shift" your g values by -sigma
   ////////////////////////////////////////////////////////////////////////////
-  // igl::copyleft::marching_cubes(D, x, nx, ny, nz, V, F);
+
+  double sigma;
+  igl::median(signdist, sigma);
+  igl::marching_tets(V,T,signdist,sigma,finalV,finalF);
+
 }
