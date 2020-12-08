@@ -250,6 +250,11 @@ int main(int argc, char *argv[])
         viewer.data().clear();
         viewer.data().set_mesh(finalV,finalF);
         return true;
+      case 'V':
+      case 'v':
+        viewer.data().clear();
+        viewer.data().set_mesh(V_stu,F_stu);
+        return true;
       case 'e':
         viewer.data().clear();
         ray_view();

@@ -41,6 +41,22 @@ Once built, you can execute the assignment from inside the `build/` using
     ./mesh-reconstruction [path to point cloud]
 
 ## Visualization
+#### Mesh Visualization
+* `S` / `s` - mesh output by "Signing the Unsigned"
+* `V` / `v` - intermediate coarse mesh output by "Signing the Unsigned"
+* `N` / `n` - mesh output by Poisson Surface Reconstruction
+#### Point Cloud Visualization
+* `P` / `p` - coarse mesh vertices colored according to `zcolor`
+* `y` - color according to predicted signed distance
+* `u` - color according to predicted sign
+* `i` - color according to sign confidence
+* `o` - color according to unsigned distance
+* `m` - color according to poisson distance
+#### Ray Shooting
+* `e` - sample a ray and visualize the result
+#### 2D Cut
+* `r`- visualize a 2D cut and increment the 2D cut being visualized
+* `t` - visualize a 2D cut and decrement the 2D cut being visualized
 
 
 ## Background
