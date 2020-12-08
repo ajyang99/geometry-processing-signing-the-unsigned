@@ -44,16 +44,16 @@ Once built, you can execute the assignment from inside the `build/` using
 #### Mesh Visualization
 * `S` / `s` - mesh output by "Signing the Unsigned"
 * `V` / `v` - intermediate coarse mesh output by "Signing the Unsigned"
-* `N` / `n` - mesh output by Poisson Surface Reconstruction
+* `N` / `n` - final mesh output by Poisson Surface Reconstruction
+#### Ray Shooting
+* `e` - sample a ray and visualize the result
 #### Point Cloud Visualization
-* `P` / `p` - coarse mesh vertices colored according to `zcolor`
+* `P` / `p` - coarse mesh vertices colored according to the switches listed below
 * `y` - color according to predicted signed distance
 * `u` - color according to predicted sign
 * `i` - color according to sign confidence
 * `o` - color according to unsigned distance
 * `m` - color according to poisson distance
-#### Ray Shooting
-* `e` - sample a ray and visualize the result
 #### 2D Cut
 * `r`- visualize a 2D cut and increment the 2D cut being visualized
 * `t` - visualize a 2D cut and decrement the 2D cut being visualized
