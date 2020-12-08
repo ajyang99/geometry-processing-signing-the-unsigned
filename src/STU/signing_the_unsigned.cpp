@@ -9,6 +9,7 @@
 #include <igl/parallel_for.h>
 #include <igl/median.h>
 #include <igl/cotmatrix.h>
+#include <igl/marching_tets.h>
 #include <igl/copyleft/marching_cubes.h>
 #include <algorithm>
 #include <cmath>
@@ -246,7 +247,7 @@ void signing_the_unsigned(
   Eigen::VectorXd tgt(V.rows());
   Eigen::SparseMatrix<double> Amat(V.rows(), V.rows());
   Eigen::SparseMatrix<double> L;
-  double alpha = 1000.0;
+  double alpha = 100.0;
   for (int i=0; i<V.rows(); i++) {
     tgt(i) = alpha * signconf(i) * sign(i) * D(i);
   }
@@ -317,5 +318,5 @@ void signing_the_unsigned(
     g(I(i)) = signdist(i) - sigma;
   }
   std::cout<<"THIS RANGE: "<<g.maxCoeff()<<", "<<g.minCoeff()<<std::endl;
-  igl::copyleft::marching_cubes(g, x, nx, ny, nz, finalV, finalF);
+  igl::marching_tets(V, T, signdist, sigma, finalV, finalF);
 }
