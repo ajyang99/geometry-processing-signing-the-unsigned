@@ -184,7 +184,7 @@ int main(int argc, char *argv[])
     direc = direc / std::sqrt(direc(0)*direc(0) + direc(1)*direc(1) + direc(2)*direc(2));
     std::cout<<"DIRECTION: "<<direc<<std::endl;
     viewer.data().clear();
-    viewer.data().set_points(V_stu,Eigen::RowVector3d(1,1,1));
+    viewer.data().set_mesh(V_stu,F_stu);
 
     // choose point
     int query_ix = std::rand() % V_stu.rows();
@@ -196,18 +196,18 @@ int main(int argc, char *argv[])
     shoot_ray(v2v, v2vec, query_ix, direc, is_in_band, DG, traj, should_count, num_hits);
     std::cout<<num_hits<<std::endl;
     Eigen::MatrixXd vec0, vec1;
-    Eigen::MatrixXd colors = Eigen::MatrixXd::Zero(traj.size() - 1, 3);
+    Eigen::MatrixXd colors = Eigen::MatrixXd::Ones(traj.size() - 1, 3);
     vec0.resize(traj.size() - 1, 3);
     vec1.resize(traj.size() - 1, 3);
     for (int i=0; i<traj.size()-1; i++) {
       vec0.row(i) = V_stu.row(traj[i]);
       vec1.row(i) = V_stu.row(traj[i+1]);
       if (should_count[i] == 0 && should_count[i+1] == 1)
-        colors(i, 0) = 1.0;
+        colors(i, 1) = 0.0; colors(i, 2) = 0.0;
       if (should_count[i] == 1 && should_count[i+1] == 0)
-        colors(i, 1) = 1.0;
+        colors(i, 0) = 0.0; colors(i, 2) = 0.0;
       if (should_count[i] == 1 && should_count[i+1] == 1)
-        colors(i, 2) = 1.0;
+        colors(i, 0) = 0.0; colors(i, 1) = 0.0;
     }
     viewer.data().add_edges(vec0,vec1,colors);
     Eigen::MatrixXd nextv(1, 3);
@@ -237,11 +237,11 @@ int main(int argc, char *argv[])
       case 'p':
         set_points();
         return true;
-      // case 'M':
-      // case 'm':
-      //   viewer.data().clear();
-      //   viewer.data().set_mesh(V,F);
-      //   return true;
+      case 'N':
+      case 'n':
+        viewer.data().clear();
+        viewer.data().set_mesh(V,F);
+        return true;
       case 'S':
       case 's':
         viewer.data().clear();

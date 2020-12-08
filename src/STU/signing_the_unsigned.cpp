@@ -141,8 +141,8 @@ void signing_the_unsigned(
   Eigen::VectorXd D_P; // est unsigned dist of the input point cloud
   Eigen::MatrixXd DGnew; // new gradient of the distance (TODO use this)
   unsigned_distance(P, P, nearest_neighbor_k, D_P, DGnew);
-  eps_band_select(V, T, D, D_P, eps);
-  // eps = 0.015;
+  // eps_band_select(V, T, D, D_P, eps);
+  igl::median(D, eps);
 
   eps_band_refine(P, D_P, V, eps, nearest_neighbor_k, D);
   Eigen::MatrixXi T_eps;  // to visulize eps band with refined distance
@@ -192,9 +192,9 @@ void signing_the_unsigned(
         std::vector<int> traj, should_count;  // for debugging
         int num_hits;  // parity of this determines the sign
         shoot_ray(v2v, v2vec, i, direc, is_in_band, DG, traj, should_count, num_hits);
-        // only count the ray if we hit the band at least once
-        if (num_hits > 0)
-          hit_collect.push_back(num_hits % 2);
+        // // only count the ray if we hit the band at least once
+        // if (num_hits > 0)
+        hit_collect.push_back(num_hits % 2);
       }
       // count evens and odds
       int evens = 0;
@@ -246,10 +246,11 @@ void signing_the_unsigned(
   Eigen::VectorXd tgt(V.rows());
   Eigen::SparseMatrix<double> Amat(V.rows(), V.rows());
   Eigen::SparseMatrix<double> L;
-  double alpha = 0.1;
+  double alpha = 1000.0;
   for (int i=0; i<V.rows(); i++) {
     tgt(i) = alpha * signconf(i) * sign(i) * D(i);
   }
+  // remove faces with 0 area
   Eigen::VectorXd areas;
   Eigen::MatrixXi faces;
   get_faces(T, faces);
@@ -288,8 +289,19 @@ void signing_the_unsigned(
   // function always extracts g=0, so "pre-shift" your g values by -sigma
   ////////////////////////////////////////////////////////////////////////////
 
+  // find sigma
   double sigma;
-  igl::median(signdist, sigma);
+  {
+  Eigen::VectorXd inbanddist(D.rows());
+  int counter = 0;
+  for (int i=0; i<D.rows(); i++) {
+    if (is_in_band(i))
+      inbanddist(counter) = signdist(i); counter++;
+  }
+  inbanddist = inbanddist.topRows(counter);
+  igl::median(inbanddist, sigma);
+  }
+
   std::cout << "marching cubes sigma is " << sigma << std::endl;
   Eigen::VectorXi is_in_coarse_mesh = Eigen::VectorXi::Zero(x.rows());
   for (int i = 0; i < I.size(); ++i) {
@@ -298,11 +310,12 @@ void signing_the_unsigned(
   Eigen::VectorXd g(x.rows());
   for (int i = 0; i < x.rows(); ++i) {
     if (is_in_coarse_mesh(i) == 0) {
-      g(i) = D_x(i) - sigma;
+      g(i) = 1;
     }
   }
   for (int i = 0; i < I.size(); ++i) {
     g(I(i)) = signdist(i) - sigma;
   }
+  std::cout<<"THIS RANGE: "<<g.maxCoeff()<<", "<<g.minCoeff()<<std::endl;
   igl::copyleft::marching_cubes(g, x, nx, ny, nz, finalV, finalF);
 }
