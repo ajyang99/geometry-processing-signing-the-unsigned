@@ -6,10 +6,10 @@
 #include "STU/graph_representation.h"
 #include "STU/eps_band_refine.h"
 #include <igl/doublearea.h>
-#include <igl/marching_tets.h>
 #include <igl/parallel_for.h>
 #include <igl/median.h>
 #include <igl/cotmatrix.h>
+#include <igl/copyleft/marching_cubes.h>
 #include <algorithm>
 #include <cmath>
 #include <iostream>
@@ -88,7 +88,7 @@ void signing_the_unsigned(
   // padding: number of cells beyond bounding box of input points
   const double pad = 8;
   // choose grid spacing (h) so that shortest side gets 30+2*pad samples
-  double h  = max_extent/double(70+2*pad);
+  double h  = max_extent/double(40+2*pad);
   // Place bottom-left-front corner of grid at minimum of points minus padding
   Eigen::RowVector3d corner = P.colwise().minCoeff().array()-pad*h;
   // Grid dimensions should be at least 3 
@@ -115,7 +115,7 @@ void signing_the_unsigned(
   ////////////////////////////////////////////////////////////////////////////
   Eigen::VectorXd D_x; // unsigned distance of all sampled grid points x
   Eigen::VectorXi I; // x.row(I(i)) = V.row(i)
-  const size_t nearest_neighbor_k = 5;
+  const size_t nearest_neighbor_k = 15;
   Eigen::MatrixXd DG_x;
   coarse_mesh(P, x, h, nearest_neighbor_k, D_x, V, I, T, DG_x);
   get_faces(T, F);
@@ -141,10 +141,10 @@ void signing_the_unsigned(
   Eigen::VectorXd D_P; // est unsigned dist of the input point cloud
   Eigen::MatrixXd DGnew; // new gradient of the distance (TODO use this)
   unsigned_distance(P, P, nearest_neighbor_k, D_P, DGnew);
-  // eps_band_select(V, T, D, D_P, eps);
-  eps = 0.015;
+  eps_band_select(V, T, D, D_P, eps);
+  // eps = 0.015;
 
-  // eps_band_refine(P, D_P, V, eps, nearest_neighbor_k, D);
+  eps_band_refine(P, D_P, V, eps, nearest_neighbor_k, D);
   Eigen::MatrixXi T_eps;  // to visulize eps band with refined distance
   get_eps_band(D, T, eps, T_eps);
   get_faces(T_eps, F);
@@ -171,7 +171,7 @@ void signing_the_unsigned(
   std::default_random_engine generator;
   std::normal_distribution<double> distribution(0.0, 1.0);
 
-  for (int i=0; i<V.rows(); i++) {
+  igl::parallel_for(V.rows(),[&](size_t i) {
     // if inside the band, set sign to 0 for now
     if (is_in_band(i)) {
       sign(i) = 0;
@@ -200,14 +200,14 @@ void signing_the_unsigned(
       int evens = 0;
       int odds = 0;
       for (int j=0; j<hit_collect.size(); j++) {
-        if (hit_collect[j] == 0) {evens++;}
+        if (hit_collect[j] % 2 == 0) {evens++;}
         else {odds++;}
       }
       // calculate sign and confidence
       sign(i) = (evens > odds) ? 1 : -1;
       signconf(i) = 2*std::max(evens, odds) / ((float) R) - 1;
     }
-  }
+  },1000);
 
   // solve for sign inside the band
   // - loop through vertices in the band starting with the farthest distance
@@ -240,7 +240,9 @@ void signing_the_unsigned(
     }
   }
 
-  // now solve for the final sign
+  ////////////////////////////////////////////////////////////////////////////
+  // Solve for the final signed distance with smoothing constraints
+  ////////////////////////////////////////////////////////////////////////////
   Eigen::VectorXd tgt(V.rows());
   Eigen::SparseMatrix<double> Amat(V.rows(), V.rows());
   Eigen::SparseMatrix<double> L;
@@ -288,6 +290,19 @@ void signing_the_unsigned(
 
   double sigma;
   igl::median(signdist, sigma);
-  igl::marching_tets(V,T,signdist,sigma,finalV,finalF);
-
+  std::cout << "marching cubes sigma is " << sigma << std::endl;
+  Eigen::VectorXi is_in_coarse_mesh = Eigen::VectorXi::Zero(x.rows());
+  for (int i = 0; i < I.size(); ++i) {
+    is_in_coarse_mesh(I(i)) = 1;
+  }
+  Eigen::VectorXd g(x.rows());
+  for (int i = 0; i < x.rows(); ++i) {
+    if (is_in_coarse_mesh(i) == 0) {
+      g(i) = D_x(i) - sigma;
+    }
+  }
+  for (int i = 0; i < I.size(); ++i) {
+    g(I(i)) = signdist(i) - sigma;
+  }
+  igl::copyleft::marching_cubes(g, x, nx, ny, nz, finalV, finalF);
 }

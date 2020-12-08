@@ -50,6 +50,9 @@ void eps_band_refine(
 
     // Perform knn for V_eps
     Eigen::MatrixXi knn_indices;
+    if (P_eps.rows() < k) {
+        return;
+    }
     igl::knn(V_eps, P_eps, k, point_indices, CH, CN, W, knn_indices);
 
     // std::ofstream before("dist_before.txt");
@@ -73,7 +76,7 @@ void eps_band_refine(
             Eigen::MatrixXd sampled_neighbors;
             sampled_neighbors.resize(beta, 3);
             for (unsigned l = 0; l < beta; ++l) {
-                sampled_neighbors.row(l) = P.row(knn_indices(i, rand(l)));
+                sampled_neighbors.row(l) = P_eps.row(knn_indices(i, rand(l)));
             }
             // Fit a plane with the neighbors
             Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d> eigensolver(
