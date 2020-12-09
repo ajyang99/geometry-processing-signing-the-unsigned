@@ -117,7 +117,7 @@ The gif below illustrates the $\epsilon$-band with different $\epsilon$ values.
 
 To select the $\epsilon$ value automatically, the paper uses a function
 $$M(\epsilon) = \frac{C(\epsilon)+H(\epsilon)-G(\epsilon)}{D(\epsilon)}$$
-where $C,H,G,D$ are the number of components, cavities, and tunnels in the $\epsilon$-band, and the density of input points in the band. The detailed steps are:
+where $C,H,G,D$ are the number of components, cavities, and tunnels in the epsilon-band, and the density of input points in the band. The detailed steps are:
 
 First, we sample 200 possible $\epsilon$ values by sorting all vertices $V$ based on the respective
 unsigned distance, and splitting the vertices into 200 equal-sized buckets. The max unsigned
@@ -161,7 +161,7 @@ we take $m$ random subsets of size $\beta$. For each subset, we fit a plane with
 computes the fitting residual as the mean point-to-plane distance in the subset.
 We identify the best-fit plane as the one with the smallest residual, and 
 set the refined unsigned distance as the distance between the plane and the query point
-$\mathbf{x]}$. The paper chooses $\beta=\frac{3}{4}K$ and $m=\frac{1}{2}K$.
+$\mathbf{x}$. The paper chooses $\beta=\frac{3}{4}K$ and $m=\frac{1}{2}K$.
 The figure belows shows the histogram of absolute distance between the ground-truth unsigned
 distance (esitamted with the mesh from Poisson Surface Reconstruct) and
 the unsigned distance estimated before and after the refinement on the elephant point cloud.
@@ -176,7 +176,7 @@ elephant point cloud is very clean.
 ## Sign Estimates
 We first preprocess a "graph-like" representation of the coarse mesh such that for any vertex $v$, we have the edges connected to $v$, a unit vector representing the direction of each edge, and the direction of the gradient of the unsigned distance at that vertex
 $$ \nabla d_U(x) \propto \frac{1}{K} \sum_{i=1}^K (x - x_i) $$
-To "shoot rays", we sample a random unit vector `direc`, then choose the edge that most closely aligns with `direc` until we reach a vertex that was already visited. We shoot $R=15$ rays from each vertex.
+To "shoot rays", we sample a random direction represented as a unit vector, then recursively choose the edge that most closely aligns with the chosen direction until we reach a vertex that was already visited. We shoot $R=15$ rays from each vertex.
 
 We count how many times each trajectory passes through the epsilon band by counting how many times the ray transitions from a vertex outside the band to a vertex inside the band and later departs from the band. As suggested in the paper, to somewhat filter out cases where a ray "grazes" the epsilon band and comes out the same side that it entered, we only count cases where the dot product of the gradient of the unsigned distance at the entrance point has a negative dot product with the gradient of the unsigned distance at the exit point.
 * A ray shot from inside the elephant's belly intersects the epsilon band 3 times and is therefore correctly marked as an "interior" point. Entrances are colored green and exits are colored red.
@@ -202,7 +202,7 @@ To so, we sort the band vertices by their unsigned distance. Starting with the v
 
 Before feeding our SDF to marching tets, we smooth the signed distances by solving the sparse linear system
 $$ (L + \alpha W) F = \alpha W \bar{\Lambda} \bar{F} $$
-where $L$ is the laplacian of the coarse mesh, $\alpha \in \mathbb{R}$ is a scalar that controls how much smoothing we would like, $W$ is a diagonal matrix holding the sign confidence, $F$ is the smoothed signed distance that we solve for, $\bar{\Lambda}$ is a diagonal matrix containing the predicted sign, and $\bar{F}$ is the unsigned distance. Note that the larger alpha is, the more closely $F$ will match $\bar{\Lambda} \bar{F}$. Large $\alpha$ therefore corresponds to no smoothing. We found $\alpha=100.0$ to work best.
+where $L,\alpha,W,F,\bar{\Lambda},\bar{F}$ are the laplacian of the coarse mesh, a scalar that controls how much smoothing we would like, a diagonal matrix holding the sign confidence, the smoothed signed distance that we solve for, a diagonal matrix containing the predicted sign, and the unsigned distance. Note that the larger alpha is, the more closely $F$ will match tjhe raw predicted signed distance. Large alpha therefore corresponds to no smoothing. We found $\alpha=100.0$ to work best.
 * Smoothed signed distance
 
 ![](images/sec34_vis/smoothedsdist.png)
