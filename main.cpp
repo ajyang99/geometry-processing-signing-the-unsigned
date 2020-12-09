@@ -50,11 +50,13 @@ int main(int argc, char *argv[])
 
   // Reconstruct mesh with signing the unsigned
   Eigen::MatrixXd V_stu, DG, finalV;
-  Eigen::MatrixXi F_stu, T, finalF;
+  Eigen::MatrixXi F_stu_coarse, F_stu_eps, T, finalF;
   Eigen::VectorXd dist, signconf, signdist;
   Eigen::VectorXi sign;
   double eps, h;
-  signing_the_unsigned(P,V_stu,F_stu, T, eps, dist, DG, sign, signconf, signdist, finalV, finalF, h);
+  signing_the_unsigned(
+    P, V_stu, F_stu_coarse, F_stu_eps, T, eps, dist, DG,
+    sign, signconf, signdist, finalV, finalF, h);
 
   std::vector<std::vector<int>> v2v;
   std::vector<Eigen::MatrixXd> v2vec;
@@ -135,6 +137,12 @@ int main(int argc, char *argv[])
   M,m      view mesh reconstructed with Poisson Surface Reconstruction
   S,s      view mesh reconstructed with Signing the Unsigned
 )";
+  const auto set_points_original = [&]()
+  {
+    viewer.data().clear();
+    viewer.data().set_points(P,Eigen::RowVector3d(1,1,1));
+    viewer.data().add_edges(P,(P+0.01*N).eval(),Eigen::RowVector3d(1,0,0));
+  };
   const auto set_points = [&]()
   {
     viewer.data().clear();
@@ -187,7 +195,7 @@ int main(int argc, char *argv[])
     direc.normalize();
     std::cout<<"DIRECTION: "<<direc<<std::endl;
     viewer.data().clear();
-    viewer.data().set_mesh(V_stu,F_stu);
+    viewer.data().set_mesh(V_stu,F_stu_eps);
 
     // choose point
     int query_ix = band_ixes(std::rand() % band_ixes.rows());
@@ -229,15 +237,19 @@ int main(int argc, char *argv[])
       vnorm.row(counter) = v2vec[query_ix].row(j);
       counter++;
     }
-    viewer.data().add_edges(vpts,(vpts+0.01*vnorm).eval(),Eigen::RowVector3d(1,0,0));
+    // viewer.data().add_edges(vpts,(vpts+0.01*vnorm).eval(),Eigen::RowVector3d(1,0,0));
   };
-  set_points();
+  set_points_original();
   viewer.callback_key_pressed = [&](igl::opengl::glfw::Viewer&, unsigned int key,int)
   {
     switch(key)
     {
       case 'P':
       case 'p':
+        set_points_original();
+        return true;
+      case 'V':
+      case 'v':
         set_points();
         return true;
       case 'N':
@@ -250,17 +262,22 @@ int main(int argc, char *argv[])
         viewer.data().clear();
         viewer.data().set_mesh(finalV,finalF);
         return true;
-      case 'V':
-      case 'v':
+      case 'C':
+      case 'c':
         viewer.data().clear();
-        viewer.data().set_mesh(V_stu,F_stu);
+        viewer.data().set_mesh(V_stu,F_stu_coarse);
         return true;
+      case 'E':
       case 'e':
+        viewer.data().clear();
+        viewer.data().set_mesh(V_stu,F_stu_eps);
+        return true;
+      case 'r':
         viewer.data().clear();
         ray_view();
         return true;
 
-      case 'r':
+      case 'z':
         zplane += 0.02;
         draw_z_plane();
         return true;
