@@ -57,12 +57,14 @@ Once built, you can execute the assignment from inside the `build/` using
 * `S` / `s` - mesh output by "Signing the Unsigned"
 * `C` / `c` - intermediate coarse mesh output by "Signing the Unsigned"
 * `E` / `e` - epsilon-band output by "Signing the Unsigned"
+* `K`       - epsilon-band with increased epsilon
+* `k`       - epsilon-band with decreased epsilon
 * `N` / `n` - mesh output by Poisson Surface Reconstruction
 #### Ray Shooting
-* `e` - sample a ray and visualize the result
+* `r` - sample a ray and visualize the result
 #### Point Cloud Visualization
-* `w` - input point cloud
-* `P` / `p` - coarse mesh vertices colored based on which switch is selected below
+* `P` / `p` - input point cloud
+* `V` / `v` - coarse mesh vertices colored based on which switch is selected below
 * `y` - color according to predicted signed distance
 * `u` - color according to predicted sign
 * `i` - color according to sign confidence
@@ -70,7 +72,7 @@ Once built, you can execute the assignment from inside the `build/` using
 * `m` - color according to poisson distance
 * `b` - show gradient of the unsigned distance (used during ray-shooting)
 #### 2D Cut
-* `r`- visualize a 2D cut and increment the 2D cut being visualized
+* `z`- visualize a 2D cut and increment the 2D cut being visualized
 * `t` - visualize a 2D cut and decrement the 2D cut being visualized
 
 
@@ -215,10 +217,10 @@ Finally, we apply marching tetrahedra to the smoothed signed distance on the coa
 
 ## Discussion
 Empirically we found that the results are sensitive to four hyperparameters, which are
-the hyperparameters associated with discretization density, the nearest neighbor <img src="svgs/d6328eaebbcd5c358f426dbea4bdbf70.svg?invert_in_darkmode" align=middle width=15.137100000000004pt height=22.46574pt/>,
+the discretization density, the nearest neighbor $K$,
 the number of rays used for sign esitmation, and the
-smoothness hyperparametere <img src="svgs/c745b9b57c145ec5577b82542b2df546.svg?invert_in_darkmode" align=middle width=10.576500000000003pt height=14.155350000000013pt/>.
-In addition, the automatic <img src="svgs/7ccca27b5ccc533a2dd72dc6fa28ed84.svg?invert_in_darkmode" align=middle width=6.672451500000003pt height=14.155350000000013pt/>-band selection heuristics might not give overall best
-result even though the band visualization with the chosen <img src="svgs/7ccca27b5ccc533a2dd72dc6fa28ed84.svg?invert_in_darkmode" align=middle width=6.672451500000003pt height=14.155350000000013pt/> looks reasonable.
-A follow-up work to this paper attempts to address this problem.
+smoothness hyperparameter $\alpha$.
+A follow-up work to this paper attempts to address the problem.
 ([Noise-Adaptive Shape Reconstruction from Raw Point Sets](http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.679.2055&rep=rep1&type=pdf)). 
+In addition, the automatic $\epsilon$-band selection heuristics might not give overall best
+result even though the band visualization with the chosen $\epsilon$ looks reasonable.
