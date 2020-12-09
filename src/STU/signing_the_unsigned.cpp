@@ -14,6 +14,7 @@
 #include <algorithm>
 #include <cmath>
 #include <iostream>
+#include <fstream>
 #include <random>
 #include <functional>
 
@@ -124,11 +125,11 @@ void signing_the_unsigned(
   get_faces(T, F_coarse);
 
   // used for eps refinement plotting
-  // std::ofstream index_file("vertex_indexing.txt");
-  // for (int i = 0; i < I.size(); ++i) {
-  //   index_file << I(i) << std::endl;
-  // }
-  // index_file.close();
+  std::ofstream index_file("vertex_indexing.txt");
+  for (int i = 0; i < I.size(); ++i) {
+    index_file << I(i) << std::endl;
+  }
+  index_file.close();
 
   ////////////////////////////////////////////////////////////////////////////
   // Choose an epsilon value for the epsilon band, and refine unsigned dist

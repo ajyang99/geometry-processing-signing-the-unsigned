@@ -128,6 +128,16 @@ In our experiments, we observed similar shape of the function output, but found 
 choosing $\epsilon$ as the median of unsigned distance at all vertices gives the best result
 overall in the end.
 
+The image below shows the $M(\epsilon)$ function with respect to the bucket index for all three test point clouds.
+We set the nearest-neighbor hyperparameter $K$ to 5 here.
+Blue denotes the raw values and orange denotes smoothed values.
+
+![](images/sec2_vis/M_plots/all.png)
+
+We also attach Figure 4 in the paper as reference.
+
+![](images/sec2_vis/M_plots/paper.png)
+
 The image below shows an visualization of the raw point set, the coarse bounding
 mesh from Delaunay triangulation, and the $\epsilon$-band chosen based on the
 $M(\epsilon)$ values.
@@ -144,6 +154,16 @@ computes the fitting residual as the mean point-to-plane distance in the subset.
 We identify the best-fit plane as the one with the smallest residual, and 
 set the refined unsigned distance as the distance between the plane and the query point
 $\mathbf{x]}$. The paper chooses $\beta=\frac{3}{4}K$ and $m=\frac{1}{2}K$.
+The figure belows shows the histogram of absolute distance between the ground-truth unsigned
+distance (esitamted with the mesh from Poisson Surface Reconstruct) and
+the unsigned distance estimated before and after the refinement on the elephant point cloud.
+Note that after refinement we do not see an improvement. We suspect this might be because
+refinement aims to address noise in the input point cloud problem while the test
+elephant point cloud is very clean.
+
+![](images/sec2_vis/refine/elephant.png)
+
+
 
 ## Sign Estimates
 We first preprocess a "graph-like" representation of the coarse mesh such that for any vertex $v$, we have the edges connected to $v$, a unit vector representing the direction of each edge, and the direction of the gradient of the unsigned distance at that vertex

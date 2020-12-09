@@ -89,13 +89,13 @@ void poisson_surface_reconstruction(
   poisg = g;
 
   // Used for comparing STU unsigned dist estimates
-  // Eigen::VectorXd d;
-  // Eigen::VectorXi I;
-  // Eigen::MatrixXd C;
-  // igl::point_mesh_squared_distance(x, V, F, d, I, C);
-  // std::ofstream file("gt_dist.txt");
-  // for (int i = 0; i < d.size();  ++i) {
-  //   file  <<  std::sqrt(d(i)) << std::endl;
-  // }
-  // file.close();
+  Eigen::VectorXd d;
+  Eigen::VectorXi I;
+  Eigen::MatrixXd C;
+  igl::point_mesh_squared_distance(x, V, F, d, I, C);
+  std::ofstream file("gt_dist.txt");
+  for (int i = 0; i < d.size();  ++i) {
+    file  <<  std::sqrt(d(i)) << std::endl;
+  }
+  file.close();
 }
