@@ -237,7 +237,7 @@ int main(int argc, char *argv[])
       vnorm.row(counter) = v2vec[query_ix].row(j);
       counter++;
     }
-    // viewer.data().add_edges(vpts,(vpts+0.01*vnorm).eval(),Eigen::RowVector3d(1,0,0));
+    viewer.data().add_edges(vpts,(vpts+0.01*vnorm).eval(),Eigen::RowVector3d(1,0,0));
   };
   set_points_original();
   viewer.callback_key_pressed = [&](igl::opengl::glfw::Viewer&, unsigned int key,int)

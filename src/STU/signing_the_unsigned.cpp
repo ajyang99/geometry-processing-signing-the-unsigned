@@ -144,8 +144,8 @@ void signing_the_unsigned(
   Eigen::VectorXd D_P; // est unsigned dist of the input point cloud
   Eigen::MatrixXd DGnew; // new gradient of the distance (TODO use this)
   unsigned_distance(P, P, nearest_neighbor_k, D_P, DGnew);
-  eps_band_select(V, T, D, D_P, eps);
-  // igl::median(D, eps);
+  // eps_band_select(V, T, D, D_P, eps);
+  igl::median(D, eps);
 
   eps_band_refine(P, D_P, V, eps, nearest_neighbor_k, D);
   Eigen::MatrixXi T_eps;  // to visulize eps band with refined distance
