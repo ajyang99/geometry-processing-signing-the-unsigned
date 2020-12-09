@@ -4,8 +4,10 @@
 
 **Video:** [https://youtu.be/VzrRX9UiI_g](https://youtu.be/VzrRX9UiI_g)
 
+**Slides:** [https://docs.google.com/presentation/d/1CmdiCTnOjtBx05VRpRHUzOyldK4pPMa45uBAMyEX_Mk/edit?usp=sharing](https://docs.google.com/presentation/d/1CmdiCTnOjtBx05VRpRHUzOyldK4pPMa45uBAMyEX_Mk/edit?usp=sharing)
+
 **Project:** This repository implements
-[Signing the Unsigned: Robust Surfact Reconstruction from Raw Pointsets](https://hal.inria.fr/inria-00502473/document)
+[Signing the Unsigned: Robust Surface Reconstruction from Raw Pointsets](https://hal.inria.fr/inria-00502473/document)
 by Mullen et al. 2010.
 
 **Challenge:** Extract a signed distance field (SDF) given only a raw pointcloud.
@@ -205,7 +207,7 @@ To so, we sort the band vertices by their unsigned distance. Starting with the v
 
 Before feeding our SDF to marching tets, we smooth the signed distances by solving the sparse linear system
 $$ (L + \alpha W) F = \alpha W \hat{\Lambda} \hat{F} $$
-where $L,\alpha,W,F,\hat{\Lambda},\hat{F}$ are the laplacian of the coarse mesh, a scalar that controls how much smoothing we would like, a diagonal matrix holding the sign confidence, the smoothed signed distance that we solve for, a diagonal matrix containing the predicted sign, and the unsigned distance. Note that the larger alpha is, the more closely $F$ will match tjhe raw predicted signed distance. Large alpha therefore corresponds to no smoothing. We found $\alpha=100.0$ to work best.
+where $L,\alpha,W,F,\hat{\Lambda},\hat{F}$ are the laplacian of the coarse mesh, a scalar that controls how much smoothing we would like, a diagonal matrix holding the sign confidence, the smoothed signed distance that we solve for, a diagonal matrix containing the predicted sign, and the unsigned distance. Note that the larger alpha is, the more closely $F$ will match the raw predicted signed distance. Large alpha therefore corresponds to no smoothing. We found $\alpha=100.0$ to work best.
 
 * Smoothed signed distance
 
@@ -226,3 +228,7 @@ A follow-up work to this paper attempts to address the problem.
 ([Noise-Adaptive Shape Reconstruction from Raw Point Sets](http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.679.2055&rep=rep1&type=pdf)). 
 In addition, the automatic $\epsilon$-band selection heuristics might not give overall best
 result even though the band visualization with the chosen $\epsilon$ looks reasonable.
+
+Since we (Joyce and Jonah) have both worked on self-driving research, we thought it would be fun to apply the algorithm to LiDAR scans of cars. Obviously, this domain is very different from the domain that "Signing the Unsigned" was designed for in that cars in LiDAR scans are generally partially observed. We accumulated all LiDAR points for cars from the [nuScenes dataset](https://www.nuscenes.org/) (nuScenes tracks objects so it's possible to concatenate points from LiDAR scans from multiple timesteps). The car below had the largest number of points in the "mini" split of the dataset (see `../data/nuscenes_car.pwn`). Data-driven reconstruction is likely necessary to reconstruct a correct mesh from a point cloud like this. It could be interesting to fuse the techniques from "Signing the Unsigned" with data-driven surface reconstruction.
+
+![](images/sec34_vis/nuscenes.png)
