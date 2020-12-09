@@ -154,15 +154,15 @@ To "shoot rays", we sample a random unit vector `direc`, then choose the edge th
 
 We count how many times each trajectory passes through the epsilon band by counting how many times the ray transitions from a vertex outside the band to a vertex inside the band and later departs from the band. As suggested in the paper, to somewhat filter out cases where a ray "grazes" the epsilon band and comes out the same side that it entered, we only count cases where the dot product of the gradient of the unsigned distance at the entrance point has a negative dot product with the gradient of the unsigned distance at the exit point.
 * A ray shot from inside the elephant's belly intersects the epsilon band 3 times and is therefore correctly marked as an "interior" point. Entrances are colored green and exits are colored red.
-![](images/rayshoot.png)
+![](images/sec34_vis/rayshoot.png)
 * Gradient of the unsigned distance. Since it roughly aligns with surface normals, the unsigned gradient is use to filter band-ray intersections in which the ray exits the same side of the band that it entered.
-![](images/udistgrad.png)
+![](images/sec34_vis/udistgrad.png)
 * An example where a ray "grazes" the epsilon band (black edges) and our algorithm (correctly) does not count it because the gradient of the unsigned distance at the entrance aligns too closely with the gradient at the exit. 
-![](images/shallowhit.png)
+![](images/sec34_vis/shallowhit.png)
 * Final predicted sign. Blue corresponds to "exterior" points, green corresponds to "band" points, and red corresponds to "interior" points.
-![](images/finalsign.png)
+![](images/sec34_vis/finalsign.png)
 * Final "confidence" in the predicted sign. Dark corresponds to low confidence and bright corresponds to high confidence. The ears are regions of low confidence, which is intuitive because they are thin.
-![](images/finalconf.png)
+![](images/sec34_vis/finalconf.png)
 
 ## Final Refinement
 We now have unsigned distances for all vertices in the coarse mesh and we have an estimate of the sign of vertices outside the epsilon band (along with a measure of uncertainty in our estimate).
@@ -171,18 +171,18 @@ Before applying marching tetrahedra, the paper suggests that we first propagate 
 To so, we sort the band vertices by their unsigned distance. Starting with the vertex with greatest distance, we check all vertices that are connected to the current vertex that have been assigned a sign. If all neighbors have the same sign, we set the the sign of that vertex to the sign of its neighbors and set the confidence to the maximum of the confidence of its neighbors.
 
 * Before and after sign propagation.
-![](images/beforeprop.png)
-![](images/afterprop.png)
+![](images/sec34_vis/beforeprop.png)
+![](images/sec34_vis/afterprop.png)
 
 Before feeding our SDF to marching tets, we smooth the signed distances by solving the sparse linear system
 $$ (L + \alpha W) F = \alpha W \bar{\Lambda} \bar{F} $$
 where $L$ is the laplacian of the coarse mesh, $\alpha \in \mathbb{R}$ is a scalar that controls how much smoothing we would like, $W$ is a diagonal matrix holding the sign confidence, $F$ is the smoothed signed distance that we solve for, $\bar{\Lambda}$ is a diagonal matrix containing the predicted sign, and $\bar{F}$ is the unsigned distance. Note that the larger alpha is, the more closely $F$ will match $\bar{\Lambda} \bar{F}$. Large $\alpha$ therefore corresponds to no smoothing. We found $\alpha=100.0$ to work best.
 * Smoothed signed distance
 
-![](images/smoothedsdist.png)
+![](images/sec34_vis/smoothedsdist.png)
 
 Finally, we apply marching tetrahedra to the smoothed signed distance on the coarse mesh to get a final triangle mesh.
 
-![](images/felephant.png)
-![](images/fhand.png)
-![](images/fsphere.png)
+![](images/sec34_vis/felephant.png)
+![](images/sec34_vis/fhand.png)
+![](images/sec34_vis/fsphere.png)
