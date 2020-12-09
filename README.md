@@ -103,8 +103,7 @@ sampled point in the grid, and only keep the point <img src="svgs/b0ea07dc5c0012
 <p align="center"><img src="svgs/523748779f10020f720f1aa01902bded.svg?invert_in_darkmode" align=middle width=73.71803999999999pt height=16.438356pt/></p>
 where h is the length of the voxel grid diagonal. The filtering step above aims to keep
 only the set of sampled points that are close to the point cloud. With these
-points as vertices, we can perform Delaunay triangulation in 3D to construct a coarse
-tetrahedra mesh (V, T).
+points as vertices, we can perform Delaunay triangulation in 3D to construct a coarse tetrahedra mesh.
 
 ## <img src="svgs/7ccca27b5ccc533a2dd72dc6fa28ed84.svg?invert_in_darkmode" align=middle width=6.672451500000003pt height=14.155350000000013pt/>-Band Selection
 Since <img src="svgs/2ad9d098b937e46f9f58968551adac57.svg?invert_in_darkmode" align=middle width=9.471165000000003pt height=22.831379999999992pt/> is a loose threshold, the coarse mesh <img src="svgs/a27feed43ff187753bc9939ea2310530.svg?invert_in_darkmode" align=middle width=42.483045000000004pt height=24.65759999999998pt/> constructed above does not best reflect
@@ -118,7 +117,7 @@ The gif below illustrates the <img src="svgs/7ccca27b5ccc533a2dd72dc6fa28ed84.sv
 
 To select the <img src="svgs/7ccca27b5ccc533a2dd72dc6fa28ed84.svg?invert_in_darkmode" align=middle width=6.672451500000003pt height=14.155350000000013pt/> value automatically, the paper uses a function
 <p align="center"><img src="svgs/d99e19acc357bc1ad5ef863ff083de67.svg?invert_in_darkmode" align=middle width=200.49314999999999pt height=38.834894999999996pt/></p>
-where <img src="svgs/f995d1962f1d7d656ef7a0967e97293d.svg?invert_in_darkmode" align=middle width=53.63457pt height=22.46574pt/> are the number of components, cavities and tunnels in the <img src="svgs/7ccca27b5ccc533a2dd72dc6fa28ed84.svg?invert_in_darkmode" align=middle width=6.672451500000003pt height=14.155350000000013pt/>-band. <img src="svgs/78ec2b7008296ce0561cf83393cb746d.svg?invert_in_darkmode" align=middle width=14.066250000000002pt height=22.46574pt/> is the density of input points in the band. The detailed steps are:
+where <img src="svgs/52ae15c5bfc64e921fa555143fa4af50.svg?invert_in_darkmode" align=middle width=75.00669pt height=22.46574pt/> are the number of components, cavities, and tunnels in the <img src="svgs/7ccca27b5ccc533a2dd72dc6fa28ed84.svg?invert_in_darkmode" align=middle width=6.672451500000003pt height=14.155350000000013pt/>-band, and the density of input points in the band. The detailed steps are:
 
 First, we sample 200 possible <img src="svgs/7ccca27b5ccc533a2dd72dc6fa28ed84.svg?invert_in_darkmode" align=middle width=6.672451500000003pt height=14.155350000000013pt/> values by sorting all vertices <img src="svgs/a9a3a4a202d80326bda413b5562d5cd1.svg?invert_in_darkmode" align=middle width=13.242075000000003pt height=22.46574pt/> based on the respective
 unsigned distance, and splitting the vertices into 200 equal-sized buckets. The max unsigned
@@ -176,9 +175,7 @@ elephant point cloud is very clean.
 
 ## Sign Estimates
 We first preprocess a "graph-like" representation of the coarse mesh such that for any vertex <img src="svgs/6c4adbc36120d62b98deef2a20d5d303.svg?invert_in_darkmode" align=middle width=8.557890000000002pt height=14.155350000000013pt/>, we have the edges connected to <img src="svgs/6c4adbc36120d62b98deef2a20d5d303.svg?invert_in_darkmode" align=middle width=8.557890000000002pt height=14.155350000000013pt/>, a unit vector representing the direction of each edge, and the direction of the gradient of the unsigned distance at that vertex
-
-    $$ \nabla d_U(x) \propto \frac{1}{K} \sum_{i=1}^K (x - x_i) $$
-
+<p align="center"><img src="svgs/a97078f1069c76c36edc72a05306ffe8.svg?invert_in_darkmode" align=middle width=180.06945pt height=47.80611pt/></p>
 To "shoot rays", we sample a random unit vector `direc`, then choose the edge that most closely aligns with `direc` until we reach a vertex that was already visited. We shoot <img src="svgs/517c96ccf36aee98c878c9c8a8c2c3b8.svg?invert_in_darkmode" align=middle width=50.96453999999999pt height=22.46574pt/> rays from each vertex.
 
 We count how many times each trajectory passes through the epsilon band by counting how many times the ray transitions from a vertex outside the band to a vertex inside the band and later departs from the band. As suggested in the paper, to somewhat filter out cases where a ray "grazes" the epsilon band and comes out the same side that it entered, we only count cases where the dot product of the gradient of the unsigned distance at the entrance point has a negative dot product with the gradient of the unsigned distance at the exit point.

@@ -103,8 +103,7 @@ sampled point in the grid, and only keep the point $\mathbf{x}$ with
 $$d_U(\mathbf{x}) < h$$
 where h is the length of the voxel grid diagonal. The filtering step above aims to keep
 only the set of sampled points that are close to the point cloud. With these
-points as vertices, we can perform Delaunay triangulation in 3D to construct a coarse
-tetrahedra mesh (V, T).
+points as vertices, we can perform Delaunay triangulation in 3D to construct a coarse tetrahedra mesh.
 
 ## $\epsilon$-Band Selection
 Since $h$ is a loose threshold, the coarse mesh $(V, T)$ constructed above does not best reflect
@@ -118,7 +117,7 @@ The gif below illustrates the $\epsilon$-band with different $\epsilon$ values.
 
 To select the $\epsilon$ value automatically, the paper uses a function
 $$M(\epsilon) = \frac{C(\epsilon)+H(\epsilon)-G(\epsilon)}{D(\epsilon)}$$
-where $C,H,G$ are the number of components, cavities and tunnels in the $\epsilon$-band. $D$ is the density of input points in the band. The detailed steps are:
+where $C,H,G,D$ are the number of components, cavities, and tunnels in the $\epsilon$-band, and the density of input points in the band. The detailed steps are:
 
 First, we sample 200 possible $\epsilon$ values by sorting all vertices $V$ based on the respective
 unsigned distance, and splitting the vertices into 200 equal-sized buckets. The max unsigned
@@ -176,9 +175,7 @@ elephant point cloud is very clean.
 
 ## Sign Estimates
 We first preprocess a "graph-like" representation of the coarse mesh such that for any vertex $v$, we have the edges connected to $v$, a unit vector representing the direction of each edge, and the direction of the gradient of the unsigned distance at that vertex
-
-    $$ \nabla d_U(x) \propto \frac{1}{K} \sum_{i=1}^K (x - x_i) $$
-
+$$ \nabla d_U(x) \propto \frac{1}{K} \sum_{i=1}^K (x - x_i) $$
 To "shoot rays", we sample a random unit vector `direc`, then choose the edge that most closely aligns with `direc` until we reach a vertex that was already visited. We shoot $R=15$ rays from each vertex.
 
 We count how many times each trajectory passes through the epsilon band by counting how many times the ray transitions from a vertex outside the band to a vertex inside the band and later departs from the band. As suggested in the paper, to somewhat filter out cases where a ray "grazes" the epsilon band and comes out the same side that it entered, we only count cases where the dot product of the gradient of the unsigned distance at the entrance point has a negative dot product with the gradient of the unsigned distance at the exit point.
