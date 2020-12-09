@@ -268,7 +268,10 @@ int main(int argc, char *argv[])
         zplane -= 0.02;
         draw_z_plane();
         return true;
-
+      case 'w':
+        viewer.data().clear();
+        viewer.data().set_points(P, Eigen::RowVector3d(0,0,0));
+        return true;
       case 'y':
         zcolors = sdistcolors;
         zverts = V_stu;
@@ -293,6 +296,11 @@ int main(int argc, char *argv[])
         zcolors = poiscolors;
         zverts = poisx;
         draw_z_plane();
+        return true;
+      case 'b':
+        viewer.data().clear();
+        viewer.data().set_points(V_stu, Eigen::RowVector3d(1,1,1));
+        viewer.data().add_edges(V_stu,(V_stu+0.01*DG).eval(),Eigen::RowVector3d(1,0,0));
         return true;
     }
     return false;

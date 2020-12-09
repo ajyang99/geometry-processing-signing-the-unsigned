@@ -304,19 +304,7 @@ void signing_the_unsigned(
   }
 
   std::cout << "marching cubes sigma is " << sigma << std::endl;
-  Eigen::VectorXi is_in_coarse_mesh = Eigen::VectorXi::Zero(x.rows());
-  for (int i = 0; i < I.size(); ++i) {
-    is_in_coarse_mesh(I(i)) = 1;
-  }
-  Eigen::VectorXd g(x.rows());
-  for (int i = 0; i < x.rows(); ++i) {
-    if (is_in_coarse_mesh(i) == 0) {
-      g(i) = 1;
-    }
-  }
-  for (int i = 0; i < I.size(); ++i) {
-    g(I(i)) = signdist(i) - sigma;
-  }
-  std::cout<<"THIS RANGE: "<<g.maxCoeff()<<", "<<g.minCoeff()<<std::endl;
+
+  std::cout<<"THIS RANGE: "<<signdist.maxCoeff()<<", "<<signdist.minCoeff()<<std::endl;
   igl::marching_tets(V, T, signdist, sigma, finalV, finalF);
 }

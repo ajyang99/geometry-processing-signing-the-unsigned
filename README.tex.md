@@ -1,12 +1,14 @@
 # Signing the Unsigned: Robust Surfact Reconstruction from Raw Pointsets
 
-This repository implements
+**Authors:** Joyce Yang and Jonah Philion
+
+**Project:** This repository implements
 [Signing the Unsigned: Robust Surfact Reconstruction from Raw Pointsets](https://hal.inria.fr/inria-00502473/document)
 by Mullen et al. 2010.
 
-**Problem:** Extract a signed distance field (SDF) given only a raw pointcloud.
+**Challenge:** Extract a signed distance field (SDF) given only a raw pointcloud.
 
-**Solution:** This paper leverages the fact that, given a closed surface $S \subset \mathbb{R}^3$, a query point $\mathbf{x} \in \mathbb{R}^3$ can be classified as lying inside or outside the surface by shooting a ray in any direction from the query point and counting how many times the ray intersections the surface $S$; if the ray intersects the surface an even/odd number of times, the point is outside/inside the surface. The paper uses this fact to "sign" an unsigned distance field. The steps are:
+**Proposed Solution:** This paper leverages the fact that, given a closed surface $S \subset \mathbb{R}^3$, a query point $\mathbf{x} \in \mathbb{R}^3$ can be classified as lying inside or outside the surface by shooting a ray in any direction from the query point and counting how many times the ray intersections the surface $S$; if the ray intersects the surface an even/odd number of times, the point is outside/inside the surface. The paper uses this fact to "sign" an unsigned distance field. The steps are:
 
 	1. calculate an unsigned distance field (UDF)
 	2. recover a coarse mesh (M) from the UDF
@@ -48,12 +50,14 @@ Once built, you can execute the assignment from inside the `build/` using
 #### Ray Shooting
 * `e` - sample a ray and visualize the result
 #### Point Cloud Visualization
-* `P` / `p` - coarse mesh vertices colored according to the switches listed below
+* `w` - input point cloud
+* `P` / `p` - coarse mesh vertices colored based on which switch is selected below
 * `y` - color according to predicted signed distance
 * `u` - color according to predicted sign
 * `i` - color according to sign confidence
 * `o` - color according to unsigned distance
 * `m` - color according to poisson distance
+* `b` - show gradient of the unsigned distance (used during ray-shooting)
 #### 2D Cut
 * `r`- visualize a 2D cut and increment the 2D cut being visualized
 * `t` - visualize a 2D cut and decrement the 2D cut being visualized
@@ -75,5 +79,43 @@ At a high level, for a noisy input point set $\mathbf{p} \in \mathbf{P}$ the alg
 ## Epsilon-Band Refinement
 
 ## Sign Estimates
+We first preprocess a "graph-like" representation of the coarse mesh such that for any vertex $v$, we have the edges connected to $v$, a unit vector representing the direction of each edge, and the direction of the gradient of the unsigned distance at that vertex
+
+    $$ \nabla d_U(x) \propto \frac{1}{K} \sum_{i=1}^K (x - x_i) $$
+
+To "shoot rays", we sample a random unit vector `direc`, then choose the edge that most closely aligns with `direc` until we reach a vertex that was already visited. We shoot $R=15$ rays from each vertex.
+
+We count how many times each trajectory passes through the epsilon band by counting how many times the ray transitions from a vertex outside the band to a vertex inside the band and later departs from the band. As suggested in the paper, to somewhat filter out cases where a ray "grazes" the epsilon band and comes out the same side that it entered, we only count cases where the dot product of the gradient of the unsigned distance at the entrance point has a negative dot product with the gradient of the unsigned distance at the exit point.
+* A ray shot from inside the elephant's belly intersects the epsilon band 3 times and is therefore correctly marked as an "interior" point. Entrances are colored green and exits are colored red.
+![](images/rayshoot.png)
+* Gradient of the unsigned distance. Since it roughly aligns with surface normals, the unsigned gradient is use to filter band-ray intersections in which the ray exits the same side of the band that it entered.
+![](images/udistgrad.png)
+* An example where a ray "grazes" the epsilon band (black edges) and our algorithm (correctly) does not count it because the gradient of the unsigned distance at the entrance aligns too closely with the gradient at the exit. 
+![](images/shallowhit.png)
+* Final predicted sign. Blue corresponds to "exterior" points, green corresponds to "band" points, and red corresponds to "interior" points.
+![](images/finalsign.png)
+* Final "confidence" in the predicted sign. Dark corresponds to low confidence and bright corresponds to high confidence. The ears are regions of low confidence, which is intuitive because they are thin.
+![](images/finalconf.png)
 
 ## Final Refinement
+We now have unsigned distances for all vertices in the coarse mesh and we have an estimate of the sign of vertices outside the epsilon band (along with a measure of uncertainty in our estimate).
+Before applying marching tetrahedra, the paper suggests that we first propagate sign estimates to the "band" vertices.
+
+To so, we sort the band vertices by their unsigned distance. Starting with the vertex with greatest distance, we check all vertices that are connected to the current vertex that have been assigned a sign. If all neighbors have the same sign, we set the the sign of that vertex to the sign of its neighbors and set the confidence to the maximum of the confidence of its neighbors.
+
+* Before and after sign propagation.
+![](images/beforeprop.png)
+![](images/afterprop.png)
+
+Before feeding our SDF to marching tets, we smooth the signed distances by solving the sparse linear system
+$$ (L + \alpha W) F = \alpha W \bar{\Lambda} \bar{F} $$
+where $L$ is the laplacian of the coarse mesh, $\alpha \in \mathbb{R}$ is a scalar that controls how much smoothing we would like, $W$ is a diagonal matrix holding the sign confidence, $F$ is the smoothed signed distance that we solve for, $\bar{\Lambda}$ is a diagonal matrix containing the predicted sign, and $\bar{F}$ is the unsigned distance. Note that the larger alpha is, the more closely $F$ will match $\bar{\Lambda} \bar{F}$. Large $\alpha$ therefore corresponds to no smoothing. We found $\alpha=100.0$ to work best.
+* Smoothed signed distance
+
+![](images/smoothedsdist.png)
+
+Finally, we apply marching tetrahedra to the smoothed signed distance on the coarse mesh to get a final triangle mesh.
+
+![](images/felephant.png)
+![](images/fhand.png)
+![](images/fsphere.png)
