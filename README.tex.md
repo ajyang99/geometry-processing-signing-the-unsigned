@@ -118,8 +118,7 @@ The gif below illustrates the $\epsilon$-band with different $\epsilon$ values.
 
 To select the $\epsilon$ value automatically, the paper uses a function
 $$M(\epsilon) = \frac{C(\epsilon)+H(\epsilon)-G(\epsilon)}{D(\epsilon)}$$
-where $C$, $H$, $G$ are the number of components, cavities and tunnels in the $\epsilon$-band.
-$D$ is the density of input points in the band. The detailed steps are:
+where $C,H,G$ are the number of components, cavities and tunnels in the $\epsilon$-band. $D$ is the density of input points in the band. The detailed steps are:
 
 First, we sample 200 possible $\epsilon$ values by sorting all vertices $V$ based on the respective
 unsigned distance, and splitting the vertices into 200 equal-sized buckets. The max unsigned
