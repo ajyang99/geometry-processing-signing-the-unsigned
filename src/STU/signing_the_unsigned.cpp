@@ -65,7 +65,8 @@ void get_eps_band(
 void signing_the_unsigned(
     const Eigen::MatrixXd & P,
     Eigen::MatrixXd & V,
-    Eigen::MatrixXi & F,
+    Eigen::MatrixXi & F_coarse,
+    Eigen::MatrixXi & F_eps,
     Eigen::MatrixXi & T,
     double & eps,
     Eigen::VectorXd & D,
@@ -120,7 +121,7 @@ void signing_the_unsigned(
   const size_t nearest_neighbor_k = 5;
   Eigen::MatrixXd DG_x;
   coarse_mesh(P, x, h, nearest_neighbor_k, D_x, V, I, T, DG_x);
-  get_faces(T, F);
+  get_faces(T, F_coarse);
 
   // used for eps refinement plotting
   // std::ofstream index_file("vertex_indexing.txt");
@@ -143,13 +144,13 @@ void signing_the_unsigned(
   Eigen::VectorXd D_P; // est unsigned dist of the input point cloud
   Eigen::MatrixXd DGnew; // new gradient of the distance (TODO use this)
   unsigned_distance(P, P, nearest_neighbor_k, D_P, DGnew);
-  // eps_band_select(V, T, D, D_P, eps);
-  igl::median(D, eps);
+  eps_band_select(V, T, D, D_P, eps);
+  // igl::median(D, eps);
 
   eps_band_refine(P, D_P, V, eps, nearest_neighbor_k, D);
   Eigen::MatrixXi T_eps;  // to visulize eps band with refined distance
   get_eps_band(D, T, eps, T_eps);
-  get_faces(T_eps, F);
+  get_faces(T_eps, F_eps);
 
   ////////////////////////////////////////////////////////////////////////////
   // Sign the distances D of tet mesh (V, T) with eps

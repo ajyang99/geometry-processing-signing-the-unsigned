@@ -12,8 +12,9 @@ by Mullen et al. 2010.
 
 	1. calculate an unsigned distance field (UDF)
 	2. recover a coarse mesh (M) from the UDF
-	3. shoot rays to sign the UDF relative to M
-	4. smooth the signed distance
+    3. use M to find an epsilon-band that describes the surface boundary
+	4. shoot rays through the epsilon-band to sign the UDF relative to M
+	5. smooth the signed distance
 
 **Takeaways:** Our main critique of this paper is that it has a chicken-and-the-egg problem; ray-shooting only returns reasonable estimates of the sign if the coarse mesh M is good, but if the coarse mesh M is good then the performance benefit of estimating the sign will be small. We find the algorithm is very sensitive to its many hyper-parameters, a problem that follow-up work to this paper attempts to address ([Noise-Adaptive Shape Reconstruction from Raw Point Sets](http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.679.2055&rep=rep1&type=pdf)). 
 
@@ -24,10 +25,17 @@ by Mullen et al. 2010.
 
 ## Installation and Compilation
 
-We use `CGAL` for 3D Delaunay triangulation. `CGAL` requires `gmp`, `mpfr` and `boost`. If you are a Mac user,
-install these dependencies with `brew install`. If you are a Windows user,
-you will only need to install `boost` as the makefiles download and install the other two
-for you automatically.
+We use `CGAL` for 3D Delaunay triangulation. `CGAL` requires `gmp`, `mpfr` and `boost`.
+If you are a Linux user, run
+
+    sudo apt-get install libgmp3-dev libmpfr-dev libboost-all-dev
+If you are a Mac user, run
+
+    brew install gmp mpfr boost
+
+If you are a Windows user,
+you will only need to install `boost` as the makefiles below should
+download and install the other two for you automatically.
 
 To build the project, run
 
@@ -45,8 +53,9 @@ Once built, you can execute the assignment from inside the `build/` using
 ## Visualization
 #### Mesh Visualization
 * `S` / `s` - mesh output by "Signing the Unsigned"
-* `V` / `v` - intermediate coarse mesh output by "Signing the Unsigned"
-* `N` / `n` - final mesh output by Poisson Surface Reconstruction
+* `C` / `c` - intermediate coarse mesh output by "Signing the Unsigned"
+* `E` / `e` - epsilon-band output by "Signing the Unsigned"
+* `N` / `n` - mesh output by Poisson Surface Reconstruction
 #### Ray Shooting
 * `e` - sample a ray and visualize the result
 #### Point Cloud Visualization
@@ -71,12 +80,70 @@ oriented normals as input.
 At a high level, for a noisy input point set $\mathbf{p} \in \mathbf{P}$ the algorithm first discretizes the bounding box... TODO
 
 ## Unsigned Distance Estimation
+The paper first estimates the unsigned distance of an arbitrary point $\mathbf{x}$ to the surface $S$ (which we wish to reconstruct) by evaluating the distance from $\mathbf{x}$ to the input point set $\mathbf{P}$.
+
+To be robust to noises and outliers, the paper uses the measure defined in
+[Geometric Inference for Measures based on Distance Functions](https://hal.inria.frinria-00383685/document) by Chazal et al. 2009, which first finds the top $K$ points in
+$\mathbf{P}$ that are the closest to $\mathbf{x}$, and computes the unsigned distance
+$$d_U(\mathbf{x}) = \sqrt{\frac{1}{K}\sum_{\mathbf{p}\in N_K(\mathbf{x})}\|\mathbf{x}-\mathbf{p}\|^2}$$
+where $N_K(\mathbf{x})$ is the set of $K$-nearest neighbors. The paper finds choosing $K$ in the
+12 to 30 range is sufficient.
 
 ## Coarse Mesh Construction
+To discretize the space, we modify the adaptive sampling in the paper with fixed-grid
+sampling, which we found sufficient in our experiments. Similar to the
+[Poisson Surface Reconstruction assignment](https://github.com/alecjacobson/geometry-processing-mesh-reconstruction), we first define a regular 3D grid of voxels containing at least the bounding box of $\mathbf{P}$. We then estimate the unsigned distance at each
+sampled point in the grid, and only keep the point $\mathbf{x}$ with
+$$d_U(\mathbf{x}) < h$$
+where $h$ is the length of the voxel grid diagonal. The filtering step above aims to keep
+only the set of sampled points that are close to the point cloud. With these
+points as vertices, we can perform Delaunay triangulation in 3D to construct a coarse
+tetrahedra mesh $(V, T)$.
 
-## Epsilon-Band Selection
+## $\epsilon$-Band Selection
+Since $h$ is a loose threshold, the coarse mesh $(V, T)$ constructed above does not best reflect
+the shape of the surface. To represent the shape better, we find an $\epsilon$-band
+which is made up of all points, edges, faces and tetrahedra in the coarse mesh that have an unsigned distance $<\epsilon$. Our goal is thus to find the value of $0\le\epsilon\le h$
+that best captures the surface boundary.
 
-## Epsilon-Band Refinement
+To select the $\epsilon$ value automatically, the paper uses a function
+$$M(\epsilon) = \frac{C(\epsilon)+H(\epsilon)-G(\epsilon)}{D(\epsilon)}$$
+where $C$, $H$, $G$ are the number of components, cavities and tunnels in the $\epsilon$-band.
+$D$ is the density of input points in the band. The detailed steps are:
+
+First, we sample 200 possible $\epsilon$ values by sorting all vertices $V$ based on the respective
+unsigned distance, and splitting the vertices into 200 equal-sized buckets. The max unsigned
+distance in each bucket will correspond to a potential $\epsilon$ value.
+
+Next, we bucket all input points $\mathbf{P}$ and tetrahedra $T$ in the coarse mesh into the 200
+intervals based on the respective unsigned distance. We then compute the number of components of each $\epsilon$-band with union-find as we insert tetrahedra with increasing $\epsilon$ thresholds. The number of cavities can be found similarily in the reverse order.
+We then calculate
+$G(\epsilon)=C(\epsilon)+H(\epsilon)-\chi(\epsilon)$ where $\chi(\epsilon)=|V|-|E|+|F|-|T|$ is
+the Euler characteristic associated to the $\epsilon$-band. Finally, $D(\epsilon)$ is
+the number of input points inside the band divided by the volume of the band.
+
+We then plot the function of $M(\epsilon)$. The paper suggests smoothing the output slightly
+and chooses the first local minimum after first local maximum based on empirical results.
+In our experiments, we observed similar shape of the function output, but found that
+choosing $\epsilon$ as the median of unsigned distance at all vertices gives the best result
+overall in the end.
+
+The image below shows an visualization of the raw point set, the coarse bounding
+mesh from Delaunay triangulation, and the $\epsilon$-band chosen based on the
+$M(\epsilon)$ values.
+
+![](images/sec2_vis/meshes.png)
+
+## $\epsilon$-Band Refinement
+Input points in the chosen $\epsilon$-band are most likely to be close to the surface and
+not noisy. Therefore, we can refine the unsigned distances of vertices within the band using
+only input points inside the band. Instead of directly using the $K$ nearest neighbors
+inside the band, we now stochastically fit a plane with the neighbors. Specifically,
+we take $m$ random subsets of size $\beta$. For each subset, we fit a plane with PCA and
+computes the fitting residual as the mean point-to-plane distance in the subset.
+We identify the best-fit plane as the one with the smallest residual, and 
+set the refined unsigned distance as the distance between the plane and the query point
+$\mathbf{x]}$. The paper chooses $\beta=\frac{3}{4}K$ and $m=\frac{1}{2}K$.
 
 ## Sign Estimates
 We first preprocess a "graph-like" representation of the coarse mesh such that for any vertex $v$, we have the edges connected to $v$, a unit vector representing the direction of each edge, and the direction of the gradient of the unsigned distance at that vertex
