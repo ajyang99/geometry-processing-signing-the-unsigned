@@ -2,6 +2,7 @@
 #include "STU/signing_the_unsigned.h"
 #include "STU/graph_representation.h"
 #include "STU/shoot_ray.h"
+#include "STU/eps_band_vis.h"
 #include <igl/list_to_matrix.h>
 #include <igl/opengl/glfw/Viewer.h>
 #include <igl/colormap.h>
@@ -58,6 +59,7 @@ int main(int argc, char *argv[])
     P, V_stu, F_stu_coarse, F_stu_eps, T, eps, dist, DG,
     sign, signconf, signdist, finalV, finalF, h);
 
+  /********** For visualizing ray shooting & sign estimation ******************/
   std::vector<std::vector<int>> v2v;
   std::vector<Eigen::MatrixXd> v2vec;
   graph_representation(V_stu, T, v2v, v2vec);
@@ -121,6 +123,12 @@ int main(int argc, char *argv[])
     poiscolors(i, 1) = g;
     poiscolors(i, 2) = b;
   }
+
+  /********************* For visualizing eps band ******************************/
+  double eps_ratio = 0.5;
+  double eps_max = dist.maxCoeff();
+  Eigen::MatrixXi F_custom_eps;
+
   // init
   Eigen::MatrixXd zcolors = signcolors;
   double zplane = 0.0;
@@ -134,7 +142,7 @@ int main(int argc, char *argv[])
   igl::opengl::glfw::Viewer viewer;
   std::cout<<R"(
   P,p      view point cloud
-  M,m      view mesh reconstructed with Poisson Surface Reconstruction
+  N,n      view mesh reconstructed with Poisson Surface Reconstruction
   S,s      view mesh reconstructed with Signing the Unsigned
 )";
   const auto set_points_original = [&]()
@@ -271,6 +279,22 @@ int main(int argc, char *argv[])
       case 'e':
         viewer.data().clear();
         viewer.data().set_mesh(V_stu,F_stu_eps);
+        return true;
+      case 'K':
+        std::cout<<"Increasing eps ratio from " << eps_ratio;
+        eps_ratio = std::min(1.0, eps_ratio + 0.01);
+        std::cout<<" to "<<eps_ratio<<std::endl;
+        get_eps_band_faces(dist, T, eps_max*eps_ratio, F_custom_eps);
+        viewer.data().clear();
+        viewer.data().set_mesh(V_stu,F_custom_eps);
+        return true;
+      case 'k':
+        std::cout<<"Decreasing eps ratio from " << eps_ratio;
+        eps_ratio = std::max(0.0, eps_ratio - 0.01);
+        std::cout<<" to "<<eps_ratio<<std::endl;
+        get_eps_band_faces(dist, T, eps_max*eps_ratio, F_custom_eps);
+        viewer.data().clear();
+        viewer.data().set_mesh(V_stu,F_custom_eps);
         return true;
       case 'r':
         viewer.data().clear();

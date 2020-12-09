@@ -3,7 +3,7 @@
 #include <igl/octree.h>
 #include <igl/parallel_for.h>
 #include <igl/randperm.h>
-// #include <fstream>
+#include <fstream>
 
 void find_points_in_eps_band(
     const Eigen::MatrixXd & P,
@@ -55,11 +55,11 @@ void eps_band_refine(
     }
     igl::knn(V_eps, P_eps, k, point_indices, CH, CN, W, knn_indices);
 
-    // std::ofstream before("dist_before.txt");
-    // for (int i = 0; i < I_eps.size(); ++i) {
-    //     before << I_eps(i) << " " << D(I_eps(i)) << std::endl;
-    // }
-    // before.close();
+    std::ofstream before("dist_before.txt");
+    for (int i = 0; i < I_eps.size(); ++i) {
+        before << I_eps(i) << " " << D(I_eps(i)) << std::endl;
+    }
+    before.close();
 
     // Refine D
     int m = 0.5 * k;
@@ -94,9 +94,9 @@ void eps_band_refine(
         }
     },1000);
 
-    // std::ofstream after("dist_after.txt");
-    // for (int i = 0; i < I_eps.size(); ++i) {
-    //     after << I_eps(i) << " " << D(I_eps(i)) << std::endl;
-    // }
-    // after.close();
+    std::ofstream after("dist_after.txt");
+    for (int i = 0; i < I_eps.size(); ++i) {
+        after << I_eps(i) << " " << D(I_eps(i)) << std::endl;
+    }
+    after.close();
 }

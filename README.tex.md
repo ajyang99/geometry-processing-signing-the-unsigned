@@ -1,6 +1,6 @@
 # Signing the Unsigned: Robust Surfact Reconstruction from Raw Pointsets
 
-**Authors:** Joyce Yang and Jonah Philion
+**Authors:** Anqi (Joyce) Yang and Jonah Philion
 
 **Project:** This repository implements
 [Signing the Unsigned: Robust Surfact Reconstruction from Raw Pointsets](https://hal.inria.fr/inria-00502473/document)
@@ -12,11 +12,13 @@ by Mullen et al. 2010.
 
 	1. calculate an unsigned distance field (UDF)
 	2. recover a coarse mesh (M) from the UDF
-    3. use M to find an epsilon-band that describes the surface boundary
+    3. use M to find an epsilon-band that best captures the surface boundary
 	4. shoot rays through the epsilon-band to sign the UDF relative to M
 	5. smooth the signed distance
 
-**Takeaways:** Our main critique of this paper is that it has a chicken-and-the-egg problem; ray-shooting only returns reasonable estimates of the sign if the coarse mesh M is good, but if the coarse mesh M is good then the performance benefit of estimating the sign will be small. We find the algorithm is very sensitive to its many hyper-parameters, a problem that follow-up work to this paper attempts to address ([Noise-Adaptive Shape Reconstruction from Raw Point Sets](http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.679.2055&rep=rep1&type=pdf)). 
+**Takeaways:** Our main critique of this paper is that it has a chicken-and-the-egg problem; ray-shooting only returns reasonable estimates of the sign if the coarse mesh M is good, but if the coarse mesh M is good then the performance benefit of estimating the sign will be small. We find that the algorithm is very sensitive to its many hyper-parameters, a problem that follow-up work to this paper attempts to address ([Noise-Adaptive Shape Reconstruction from Raw Point Sets](http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.679.2055&rep=rep1&type=pdf)). 
+
+## Our Implementation
 
 > **To get started:** Clone this repository recursively
 > 
@@ -75,9 +77,14 @@ Once built, you can execute the assignment from inside the `build/` using
 ## Background
 We implement the [Signing the Unsigned: Robust Surfact Reconstruction from Raw Pointsets](https://hal.inria.fr/inria-00502473/document) by Mullen et al. 2010. The goal is to robustly reconstruct a closed, watertight mesh from a set of (potentially noisy) points. Unlike
 Poisson Surface Reconstruction by Kazhdan et al. 2006, this algoithm does not require
-oriented normals as input.
+oriented normals as input. At a high level, the algorithm estimates an unsigned
+distance field, and signs it with ray shooting. Remember that the
+[signed distance](https://en.wikipedia.org/wiki/Signed_distance_function) of
+an arbitrary point $\mathbf{x}$ to a solid volume $\Omega$ with boundary $\partial\Omega$ is
 
-At a high level, for a noisy input point set $\mathbf{p} \in \mathbf{P}$ the algorithm first discretizes the bounding box... TODO
+$$ d_S(\mathbf{x}) = \begin{cases}-d_U(\mathbf{x},\partial\Omega)&\text{if }\mathbf{x}\in\Omega\\ d_U(\mathbf{x}, \partial\Omega)&\text{if }\mathbf{x}\in\Omega^c \end{cases} $$
+
+where $d_U$ is the unsigned distance, and $\Omega^c$ is the complement (i.e. outside the solid).
 
 ## Unsigned Distance Estimation
 The paper first estimates the unsigned distance of an arbitrary point $\mathbf{x}$ to the surface $S$ (which we wish to reconstruct) by evaluating the distance from $\mathbf{x}$ to the input point set $\mathbf{P}$.
@@ -86,8 +93,9 @@ To be robust to noises and outliers, the paper uses the measure defined in
 [Geometric Inference for Measures based on Distance Functions](https://hal.inria.frinria-00383685/document) by Chazal et al. 2009, which first finds the top $K$ points in
 $\mathbf{P}$ that are the closest to $\mathbf{x}$, and computes the unsigned distance
 $$d_U(\mathbf{x}) = \sqrt{\frac{1}{K}\sum_{\mathbf{p}\in N_K(\mathbf{x})}\|\mathbf{x}-\mathbf{p}\|^2}$$
-where $N_K(\mathbf{x})$ is the set of $K$-nearest neighbors. The paper finds choosing $K$ in the
-12 to 30 range is sufficient.
+where $N_K(\mathbf{x})$ is the set of $K$-nearest neighbors. The paper finds that 
+choosing $K$ in the 12 to 30 range is sufficient. In our experiments with smaller
+and simpler point clouds, $K=5$ gives better result.
 
 ## Coarse Mesh Construction
 To discretize the space, we modify the adaptive sampling in the paper with fixed-grid
@@ -105,6 +113,10 @@ Since $h$ is a loose threshold, the coarse mesh $(V, T)$ constructed above does 
 the shape of the surface. To represent the shape better, we find an $\epsilon$-band
 which is made up of all points, edges, faces and tetrahedra in the coarse mesh that have an unsigned distance $<\epsilon$. Our goal is thus to find the value of $0\le\epsilon\le h$
 that best captures the surface boundary.
+
+The gif below illustrates the $\epsilon$-band with different $\epsilon$ values.
+
+![](images/sec2_vis/eps_band_vis.gif)
 
 To select the $\epsilon$ value automatically, the paper uses a function
 $$M(\epsilon) = \frac{C(\epsilon)+H(\epsilon)-G(\epsilon)}{D(\epsilon)}$$
@@ -124,13 +136,23 @@ the number of input points inside the band divided by the volume of the band.
 
 We then plot the function of $M(\epsilon)$. The paper suggests smoothing the output slightly
 and chooses the first local minimum after first local maximum based on empirical results.
-In our experiments, we observed similar shape of the function output, but found that
+In our experiments, we observed similar shapes of the $M$ plots as the paper, but found that
 choosing $\epsilon$ as the median of unsigned distance at all vertices gives the best result
-overall in the end.
+with the full algorithm.
+
+The image below shows the $M(\epsilon)$ function with respect to the bucket index for all three test point clouds.
+Nearest-neighbor hyperparameter $K$=5 here.
+Blue denotes the raw values and orange denotes smoothed values.
+
+![](images/sec2_vis/M_plots/all.png)
+
+We also attach Figure 4 in the paper as reference.
+
+![](images/sec2_vis/M_plots/paper.png)
 
 The image below shows an visualization of the raw point set, the coarse bounding
 mesh from Delaunay triangulation, and the $\epsilon$-band chosen based on the
-$M(\epsilon)$ values.
+auto-selected $M(\epsilon)$ values.
 
 ![](images/sec2_vis/meshes.png)
 
@@ -144,6 +166,16 @@ computes the fitting residual as the mean point-to-plane distance in the subset.
 We identify the best-fit plane as the one with the smallest residual, and 
 set the refined unsigned distance as the distance between the plane and the query point
 $\mathbf{x]}$. The paper chooses $\beta=\frac{3}{4}K$ and $m=\frac{1}{2}K$.
+The figure belows shows the histogram of absolute distance between the ground-truth unsigned
+distance (esitamted with the mesh from Poisson Surface Reconstruct) and
+the unsigned distance estimated before and after the refinement on the elephant point cloud.
+Note that after refinement we do not see an improvement. We suspect this might be because
+refinement aims to address noise in the input point cloud problem while the test
+elephant point cloud is very clean.
+
+![](images/sec2_vis/refine/elephant.png)
+
+
 
 ## Sign Estimates
 We first preprocess a "graph-like" representation of the coarse mesh such that for any vertex $v$, we have the edges connected to $v$, a unit vector representing the direction of each edge, and the direction of the gradient of the unsigned distance at that vertex
@@ -186,3 +218,13 @@ Finally, we apply marching tetrahedra to the smoothed signed distance on the coa
 ![](images/sec34_vis/felephant.png)
 ![](images/sec34_vis/fhand.png)
 ![](images/sec34_vis/fsphere.png)
+
+## Discussion
+Empirically we found that the results are sensitive to four hyperparameters, which are
+the hyperparameters associated with discretization density, the nearest neighbor $K$,
+the number of rays used for sign esitmation, and the
+smoothness hyperparametere $\alpha$.
+In addition, the automatic $\epsilon$-band selection heuristics might not give overall best
+result even though the band visualization with the chosen $\epsilon$ looks reasonable.
+A follow-up work to this paper attempts to address this problem.
+([Noise-Adaptive Shape Reconstruction from Raw Point Sets](http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.679.2055&rep=rep1&type=pdf)). 
