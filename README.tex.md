@@ -93,7 +93,7 @@ To be robust to noises and outliers, the paper uses the measure defined in
 [Geometric Inference for Measures based on Distance Functions](https://hal.inria.frinria-00383685/document) by Chazal et al. 2009, which first finds the top $K$ points in
 $\mathbf{P}$ that are the closest to $\mathbf{x}$, and computes the unsigned distance
 $$d_U(\mathbf{x}) = \sqrt{\frac{1}{K}\sum_{\mathbf{p}\in N_K(\mathbf{x})}\|\mathbf{x}-\mathbf{p}\|^2}$$
-where $N_K(\mathbf{x})$ is the set of K-nearest neighbors. The paper finds that choosing $K$ in the 12 to 30 range is sufficient. In our experiments with smaller and simpler point clouds, K=5 gives better result.
+where $N_K(\mathbf{x})$ is the set of K-nearest neighbors. The paper finds that choosing K in the 12 to 30 range is sufficient. In our experiments with smaller and simpler point clouds, K=5 gives better result.
 
 ## Coarse Mesh Construction
 To discretize the space, we modify the adaptive sampling in the paper with fixed-grid
@@ -101,10 +101,10 @@ sampling, which we found sufficient in our experiments. Similar to the
 [Poisson Surface Reconstruction assignment](https://github.com/alecjacobson/geometry-processing-mesh-reconstruction), we first define a regular 3D grid of voxels containing at least the bounding box of $\mathbf{P}$. We then estimate the unsigned distance at each
 sampled point in the grid, and only keep the point $\mathbf{x}$ with
 $$d_U(\mathbf{x}) < h$$
-where $h$ is the length of the voxel grid diagonal. The filtering step above aims to keep
+where h is the length of the voxel grid diagonal. The filtering step above aims to keep
 only the set of sampled points that are close to the point cloud. With these
 points as vertices, we can perform Delaunay triangulation in 3D to construct a coarse
-tetrahedra mesh $(V, T)$.
+tetrahedra mesh (V, T).
 
 ## $\epsilon$-Band Selection
 Since $h$ is a loose threshold, the coarse mesh $(V, T)$ constructed above does not best reflect
