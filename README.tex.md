@@ -203,6 +203,7 @@ To so, we sort the band vertices by their unsigned distance. Starting with the v
 Before feeding our SDF to marching tets, we smooth the signed distances by solving the sparse linear system
 $$ (L + \alpha W) F = \alpha W \hat{\Lambda} \hat{F} $$
 where $L,\alpha,W,F,\hat{\Lambda},\hat{F}$ are the laplacian of the coarse mesh, a scalar that controls how much smoothing we would like, a diagonal matrix holding the sign confidence, the smoothed signed distance that we solve for, a diagonal matrix containing the predicted sign, and the unsigned distance. Note that the larger alpha is, the more closely $F$ will match tjhe raw predicted signed distance. Large alpha therefore corresponds to no smoothing. We found $\alpha=100.0$ to work best.
+
 * Smoothed signed distance
 
 ![](images/sec34_vis/smoothedsdist.png)
