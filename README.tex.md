@@ -93,9 +93,7 @@ To be robust to noises and outliers, the paper uses the measure defined in
 [Geometric Inference for Measures based on Distance Functions](https://hal.inria.frinria-00383685/document) by Chazal et al. 2009, which first finds the top $K$ points in
 $\mathbf{P}$ that are the closest to $\mathbf{x}$, and computes the unsigned distance
 $$d_U(\mathbf{x}) = \sqrt{\frac{1}{K}\sum_{\mathbf{p}\in N_K(\mathbf{x})}\|\mathbf{x}-\mathbf{p}\|^2}$$
-where $N_K(\mathbf{x})$ is the set of $K$-nearest neighbors. The paper finds that 
-choosing $K$ in the 12 to 30 range is sufficient. In our experiments with smaller
-and simpler point clouds, $K=5$ gives better result.
+where $N_K(\mathbf{x})$ is the set of $K$-nearest neighbors. The paper finds that choosing $K$ in the 12 to 30 range is sufficient. In our experiments with smaller and simpler point clouds, $K=5$ gives better result.
 
 ## Coarse Mesh Construction
 To discretize the space, we modify the adaptive sampling in the paper with fixed-grid
