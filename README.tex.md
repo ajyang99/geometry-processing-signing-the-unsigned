@@ -169,7 +169,7 @@ We identify the best-fit plane as the one with the smallest residual, and
 set the refined unsigned distance as the distance between the plane and the query point
 $\mathbf{x}$. The paper chooses $\beta=\frac{3}{4}K$ and $m=\frac{1}{2}K$.
 The figure belows shows the histogram of absolute distance between the ground-truth unsigned
-distance (esitamted with the mesh from Poisson Surface Reconstruct) and
+distance (estimated with the mesh from Poisson Surface Reconstruct) and
 the unsigned distance estimated before and after the refinement on the elephant point cloud.
 Note that after refinement we do not see an improvement. We suspect this might be because
 refinement aims to address noise in the input point cloud problem while the test
@@ -200,7 +200,7 @@ We count how many times each trajectory passes through the epsilon band by count
 We now have unsigned distances for all vertices in the coarse mesh and we have an estimate of the sign of vertices outside the epsilon band (along with a measure of uncertainty in our estimate).
 Before applying marching tetrahedra, the paper suggests that we first propagate sign estimates to the "band" vertices.
 
-To so, we sort the band vertices by their unsigned distance. Starting with the vertex with greatest distance, we check all vertices that are connected to the current vertex that have been assigned a sign. If all neighbors have the same sign, we set the the sign of that vertex to the sign of its neighbors and set the confidence to the maximum of the confidence of its neighbors.
+To do so, we sort the band vertices by their unsigned distance. Starting with the vertex with greatest distance, we check all vertices that are connected to the current vertex that have been assigned a sign. If all neighbors have the same sign, we set the the sign of that vertex to the sign of its neighbors and set the confidence to the maximum of the confidence of its neighbors.
 
 * Before and after sign propagation.
 ![](images/sec34_vis/comparison.png)
@@ -222,7 +222,7 @@ Finally, we apply marching tetrahedra to the smoothed signed distance on the coa
 ## Discussion
 Empirically we found that the results are sensitive to four hyperparameters, which are
 the discretization density, the nearest neighbor $K$,
-the number of rays used for sign esitmation, and the
+the number of rays used for sign estimation, and the
 smoothness hyperparameter $\alpha$.
 A follow-up work to this paper attempts to address the problem.
 ([Noise-Adaptive Shape Reconstruction from Raw Point Sets](http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.679.2055&rep=rep1&type=pdf)). 
