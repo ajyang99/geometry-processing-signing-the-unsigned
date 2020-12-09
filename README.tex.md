@@ -2,6 +2,8 @@
 
 **Authors:** Anqi (Joyce) Yang and Jonah Philion
 
+**Video:** [https://youtu.be/VzrRX9UiI_g](https://youtu.be/VzrRX9UiI_g)
+
 **Project:** This repository implements
 [Signing the Unsigned: Robust Surfact Reconstruction from Raw Pointsets](https://hal.inria.fr/inria-00502473/document)
 by Mullen et al. 2010.
