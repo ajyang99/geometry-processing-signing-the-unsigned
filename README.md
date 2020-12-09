@@ -197,8 +197,7 @@ Before applying marching tetrahedra, the paper suggests that we first propagate 
 To so, we sort the band vertices by their unsigned distance. Starting with the vertex with greatest distance, we check all vertices that are connected to the current vertex that have been assigned a sign. If all neighbors have the same sign, we set the the sign of that vertex to the sign of its neighbors and set the confidence to the maximum of the confidence of its neighbors.
 
 * Before and after sign propagation.
-![](images/sec34_vis/beforeprop.png)
-![](images/sec34_vis/afterprop.png)
+![](images/sec34_vis/comparison.png)
 
 Before feeding our SDF to marching tets, we smooth the signed distances by solving the sparse linear system
 <p align="center"><img src="svgs/91aff9da38061f99512ebbe5bdbe0d1b.svg?invert_in_darkmode" align=middle width=159.87444pt height=19.680374999999998pt/></p>
