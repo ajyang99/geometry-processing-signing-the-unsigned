@@ -11,6 +11,7 @@
 //   k      k used in knn
 // Outputs:
 //   D      list of size #SP of the unsigned distance
+//   DG     #SP by 3 gradient of the unsigned distance
 //
 void unsigned_distance(
     const Eigen::MatrixXd & P,

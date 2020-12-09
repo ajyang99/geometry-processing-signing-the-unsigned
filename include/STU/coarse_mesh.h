@@ -16,6 +16,7 @@
 //   V      #V by 3 vertices of the coarse mesh (#V <= #SP)
 //   I      list of size #V of the indices in SP
 //   T      #T by 4 facets of the coarse tet mesh
+//   DG     #D by 3 list of gradients
 //
 void coarse_mesh(
     const Eigen::MatrixXd & P,

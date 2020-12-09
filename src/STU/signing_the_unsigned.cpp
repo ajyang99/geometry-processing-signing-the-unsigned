@@ -2,6 +2,7 @@
 #include "STU/unsigned_distance.h"
 #include "STU/coarse_mesh.h"
 #include "STU/eps_band_select.h"
+#include "STU/eps_band_vis.h"
 #include "STU/shoot_ray.h"
 #include "STU/graph_representation.h"
 #include "STU/eps_band_refine.h"
@@ -10,57 +11,12 @@
 #include <igl/median.h>
 #include <igl/cotmatrix.h>
 #include <igl/marching_tets.h>
-#include <igl/copyleft/marching_cubes.h>
 #include <algorithm>
 #include <cmath>
 #include <iostream>
 #include <fstream>
 #include <random>
 #include <functional>
-
-
-void get_faces(
-  const Eigen::MatrixXi & T,
-  Eigen::MatrixXi & F)
-{
-  int num_tets = T.rows();
-  F.resize(num_tets * 4, 3);
-  Eigen::MatrixXi face_order;
-  face_order.resize(4, 3);
-  face_order << 3, 2, 1,
-                4, 3, 1,
-                2, 4, 1,
-                3, 4, 2;
-  // face_order << 1, 2, 3,
-  //               2, 3, 4,
-  //               3, 4, 1,
-  //               4, 1, 2;
-  for (unsigned i = 0; i < num_tets; ++i) {
-    for (unsigned j = 0; j < 4; ++j) {
-      for (unsigned k = 0; k < 3; ++k) {
-        F(i*4+j, k) = T(i, face_order(j,k)-1);
-      }
-    }
-  }
-}
-
-
-void get_eps_band(
-  const Eigen::VectorXd & D,
-  const Eigen::MatrixXi & T,
-  const double eps,
-  Eigen::MatrixXi & T_eps)
-{
-  T_eps.resizeLike(T);
-  int T_eps_size = 0;
-  for (int i = 0; i < T.rows(); ++i) {
-      if ((D(T(i,0)) <= eps) && (D(T(i,1)) <= eps) && (D(T(i,2)) <= eps) && (D(T(i,3)) <= eps))  {
-          T_eps.row(T_eps_size) = T.row(i);
-          T_eps_size++;
-      }
-  }
-  T_eps.conservativeResize(T_eps_size, 4);
-}
 
 
 void signing_the_unsigned(
@@ -288,8 +244,7 @@ void signing_the_unsigned(
   std::cout << "estimated error: " << solver.error()      << std::endl;
 
   ////////////////////////////////////////////////////////////////////////////
-  // Run black box algorithm to compute mesh from implicit function: this
-  // function always extracts g=0, so "pre-shift" your g values by -sigma
+  // Run black box algorithm to compute mesh from implicit function
   ////////////////////////////////////////////////////////////////////////////
 
   // find sigma
@@ -305,7 +260,7 @@ void signing_the_unsigned(
   igl::median(inbanddist, sigma);
   }
 
-  std::cout << "marching cubes sigma is " << sigma << std::endl;
+  std::cout << "marching tets sigma is " << sigma << std::endl;
 
   std::cout<<"THIS RANGE: "<<signdist.maxCoeff()<<", "<<signdist.minCoeff()<<std::endl;
   igl::marching_tets(V, T, signdist, sigma, finalV, finalF);

@@ -114,6 +114,10 @@ the shape of the surface. To represent the shape better, we find an $\epsilon$-b
 which is made up of all points, edges, faces and tetrahedra in the coarse mesh that have an unsigned distance $<\epsilon$. Our goal is thus to find the value of $0\le\epsilon\le h$
 that best captures the surface boundary.
 
+The gif below illustrates the $\epsilon$-band with different $\epsilon$ values.
+
+![](images/sec2_vis/eps_band_vis.gif)
+
 To select the $\epsilon$ value automatically, the paper uses a function
 $$M(\epsilon) = \frac{C(\epsilon)+H(\epsilon)-G(\epsilon)}{D(\epsilon)}$$
 where $C$, $H$, $G$ are the number of components, cavities and tunnels in the $\epsilon$-band.
@@ -214,3 +218,13 @@ Finally, we apply marching tetrahedra to the smoothed signed distance on the coa
 ![](images/sec34_vis/felephant.png)
 ![](images/sec34_vis/fhand.png)
 ![](images/sec34_vis/fsphere.png)
+
+## Discussion
+Empirically we found that the results are sensitive to four hyperparameters, which are
+the hyperparameters associated with discretization density, the nearest neighbor $K$,
+the number of rays used for sign esitmation, and the
+smoothness hyperparametere $\alpha$.
+In addition, the automatic $\epsilon$-band selection heuristics might not give overall best
+result even though the band visualization with the chosen $\epsilon$ looks reasonable.
+A follow-up work to this paper attempts to address this problem.
+([Noise-Adaptive Shape Reconstruction from Raw Point Sets](http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.679.2055&rep=rep1&type=pdf)). 
